@@ -1,0 +1,514 @@
+basePath: /api
+definitions:
+  dto.CaptchaResponse:
+    properties:
+      captcha_code:
+        type: string
+      captchaId:
+        type: string
+    type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      code:
+        type: string
+      confirmPassword:
+        type: string
+      password:
+        maxLength: 20
+        minLength: 6
+        type: string
+      phone:
+        maxLength: 11
+        minLength: 11
+        type: string
+    required:
+    - code
+    - confirmPassword
+    - password
+    - phone
+    type: object
+  dto.LoginRequest:
+    properties:
+      captchaCode:
+        description: 图片验证码
+        type: string
+      captchaId:
+        description: 图片验证码ID
+        type: string
+      password:
+        maxLength: 20
+        minLength: 6
+        type: string
+      phone:
+        maxLength: 11
+        minLength: 11
+        type: string
+    required:
+    - captchaCode
+    - captchaId
+    - password
+    - phone
+    type: object
+  dto.LoginResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshExpiresIn:
+        type: integer
+      refreshToken:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserResponse'
+    type: object
+  dto.RefreshTokenRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  dto.RefreshTokenResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshExpiresIn:
+        type: integer
+      refreshToken:
+        type: string
+    type: object
+  dto.RegisterRequest:
+    properties:
+      code:
+        type: string
+      confirmPassword:
+        type: string
+      password:
+        maxLength: 20
+        minLength: 6
+        type: string
+      phone:
+        maxLength: 11
+        minLength: 11
+        type: string
+    required:
+    - code
+    - confirmPassword
+    - password
+    - phone
+    type: object
+  dto.SendSmsRequest:
+    properties:
+      phone:
+        maxLength: 11
+        minLength: 11
+        type: string
+      type:
+        enum:
+        - register
+        - forgot
+        type: string
+    required:
+    - phone
+    - type
+    type: object
+  dto.UserResponse:
+    properties:
+      CreatedAt:
+        type: string
+      DeletedAt:
+        type: string
+      ID:
+        type: integer
+      UpdatedAt:
+        type: string
+      avatar:
+        type: string
+      birthday:
+        type: string
+      creatorId:
+        type: string
+      email:
+        type: string
+      fullName:
+        type: string
+      gender:
+        type: string
+      lastLoginIp:
+        type: string
+      lastLoginTime:
+        type: string
+      loginCount:
+        type: integer
+      modifierId:
+        type: string
+      nickname:
+        type: string
+      passwordChange:
+        type: string
+      phone:
+        type: string
+      remarks:
+        type: string
+      status:
+        type: string
+      userId:
+        type: string
+    type: object
+  response.PageResponse:
+    properties:
+      code:
+        type: integer
+      data: {}
+      msg:
+        type: string
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  response.Response:
+    properties:
+      code:
+        type: integer
+      data: {}
+      msg:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: https://github.com/Light-ink-yht/ln-admin
+  description: 基于 Go + Gin + GORM 构建的现代化后台管理系统后端服务，采用 DDD（领域驱动设计）架构和 RBAC 权限控制
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://github.com/Light-ink-yht/ln-admin
+  title: LN Admin API
+  version: "1.0"
+paths:
+  /user/captcha:
+    get:
+      consumes:
+      - application/json
+      description: 获取用于登录/注册的图片验证码，返回验证码ID和Base64图片
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CaptchaResponse'
+              type: object
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 获取图片验证码
+      tags:
+      - 认证相关
+  /user/list:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取用户列表，支持多条件查询
+      parameters:
+      - default: 1
+        description: 页码，从1开始
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量，最大100
+        in: query
+        name: page_size
+        type: integer
+      - description: 手机号（模糊查询）
+        in: query
+        name: phone
+        type: string
+      - description: 邮箱（模糊查询）
+        in: query
+        name: email
+        type: string
+      - description: 状态（1启用，2禁用）
+        in: query
+        name: status
+        type: string
+      - description: 性别（1男，2女，3未知）
+        in: query
+        name: gender
+        type: string
+      - description: 昵称（模糊查询）
+        in: query
+        name: nickname
+        type: string
+      - description: 姓名（模糊查询）
+        in: query
+        name: full_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.PageResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.UserResponse'
+                  type: array
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+  /user/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用手机号和密码登录，需要先获取图片验证码
+      parameters:
+      - description: 登录请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功，返回双Token和用户信息
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 认证失败
+          schema:
+            $ref: '#/definitions/response.Response'
+        "403":
+          description: 用户已禁用
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 用户登录
+      tags:
+      - 认证相关
+  /user/password:
+    post:
+      consumes:
+      - application/json
+      description: 通过手机号和短信验证码重置密码
+      parameters:
+      - description: 忘记密码请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 密码重置成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 请求参数错误或验证码错误
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 忘记密码
+      tags:
+      - 认证相关
+  /user/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: 使用RefreshToken刷新AccessToken，获取新的双Token
+      parameters:
+      - description: 刷新Token请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.RefreshTokenResponse'
+              type: object
+        "401":
+          description: Token无效或已过期
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 刷新Token
+      tags:
+      - 认证相关
+  /user/signup:
+    post:
+      consumes:
+      - application/json
+      description: 使用手机号、密码和短信验证码注册新用户
+      parameters:
+      - description: 注册请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 注册成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "400":
+          description: 请求参数错误或验证码错误
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 用户注册
+      tags:
+      - 认证相关
+  /user/signup/code:
+    post:
+      consumes:
+      - application/json
+      description: 发送短信验证码到指定手机号，支持注册和忘记密码场景
+      parameters:
+      - description: 发送短信请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SendSmsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 验证码已发送
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Response'
+        "429":
+          description: 发送过于频繁，请稍后再试
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: 发送短信验证码
+      tags:
+      - 认证相关
+  /user/userinfo:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取当前用户信息
+      tags:
+      - 用户管理
+securityDefinitions:
+  Bearer:
+    description: 'JWT认证，格式：Bearer {token}。登录后获取 accessToken，在请求头中添加：Authorization:
+      Bearer {accessToken}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

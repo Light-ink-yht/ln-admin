@@ -1,0 +1,8 @@
+# Swagger 文档生成目录
+
+此目录用于存放 swag 生成的 API 文档文件。
+执行 `swag init -g cmd/server/main.go -o ./docs/swagger` 后会自动生成：
+- docs.go
+- swagger.json
+- swagger.yaml
+

@@ -1,0 +1,100 @@
+# 应用配置
+app:
+  name: ln-admin
+  version: 1.0.0
+  port: 8080
+  mode: debug # debug, release, test
+  
+# 数据库配置
+database:
+  # 数据库类型: mysql, oracle
+  type: mysql
+  # MySQL 配置
+  mysql:
+    host: localhost
+    port: 3306
+    user: root
+    password: root
+    dbname: ln_admin
+    charset: utf8mb4
+    max_open_conns: 100
+    max_idle_conns: 10
+    conn_max_lifetime: 3600 # 秒
+    conn_max_idle_time: 300 # 秒
+  # Oracle 配置
+  oracle:
+    host: localhost
+    port: 1521
+    user: system
+    password: password
+    service_name: ORCL
+    max_open_conns: 100
+    max_idle_conns: 10
+    conn_max_lifetime: 3600
+    conn_max_idle_time: 300
+
+# JWT配置
+jwt:
+  secret: IEGhWXsuzelqQjoxrP4BFzawkSDG0O7N
+  expire: 7200 # 秒，2小时
+  refresh_expire: 604800 # 秒，7天
+  issuer: ln-admin
+
+# 日志配置
+log:
+  level: debug # debug, info, warn, error
+  format: json # json, text
+  output: file # console, file, both
+  path: ./logs
+  filename: app.log
+  max_size: 100 # MB
+  max_backups: 7 # 保留天数
+  max_age: 30 # 天数
+  compress: true
+
+# 中间件配置
+middleware:
+  cors:
+    allow_origins:
+      - http://localhost:5173
+      - http://localhost:3000
+    allow_methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+      - PATCH
+    allow_headers:
+      - Content-Type
+      - Authorization
+      - X-Requested-With
+    allow_credentials: true
+
+# 验证码配置
+captcha:
+  length: 4
+  width: 120
+  height: 40
+  expiry: 300 # 秒，5分钟
+
+# 密码加密配置
+password:
+  cost: 10 # bcrypt cost, 4-31
+
+# Redis配置
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+  dial_timeout: 5 # 秒
+  read_timeout: 3 # 秒
+  write_timeout: 3 # 秒
+
+# 短信配置
+sms:
+  enabled: false # 是否启用短信功能，false时只在日志中显示验证码（开发环境），true时必须配置完整的短信参数才能发送
+
