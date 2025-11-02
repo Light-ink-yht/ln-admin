@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/Light-ink-yht/ln-admin/internal/application/service"
+	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/interfaces/http/handler"
 	"github.com/Light-ink-yht/ln-admin/internal/interfaces/http/middleware"
 
@@ -16,6 +17,10 @@ import (
 
 // SetupRouter 设置路由
 func SetupRouter(userAppService *service.UserAppService, smsAppService *service.SMSAppService, permissionService *service.PermissionService) *gin.Engine {
+	// 创建菜单仓库和服务
+	menuRepo := repository.NewMenuRepository()
+	menuService := service.NewMenuService(permissionService, menuRepo)
+	menuHandler := handler.NewMenuHandler(menuService)
 	// 创建Gin引擎
 	r := gin.New()
 
@@ -41,16 +46,36 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 			user.POST("/refresh-token", userHandler.RefreshToken) // 刷新Token
 		}
 
-		// 需要认证的路由
+		// 需要认证但不需权限验证的路由（基础用户信息接口）
 		auth := api.Group("/user")
-		auth.Use(middleware.Auth())             // JWT认证
-		auth.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		auth.Use(middleware.Auth()) // 只需JWT认证
 		{
-			auth.GET("/userinfo", userHandler.GetUserInfo) // 获取当前用户信息
-			auth.GET("/list", userHandler.ListUsers)       // 获取用户列表
+			auth.GET("/userinfo", userHandler.GetUserInfo) // 获取当前用户信息（所有已登录用户都可访问）
 			auth.POST("/logout", func(c *gin.Context) {    // 退出登录
 				c.JSON(200, gin.H{"code": 200, "message": "success"})
 			})
+		}
+
+		// 菜单相关路由（需要认证）
+		menu := api.Group("/menu")
+		menu.Use(middleware.Auth()) // 只需JWT认证
+		{
+			menu.GET("/sidebar", menuHandler.GetSidebarMenus) // 获取侧边栏菜单（动态）
+			menu.GET("/user", menuHandler.GetUserMenus)       // 获取用户下拉菜单（动态）
+			menu.GET("/list", menuHandler.ListMenus)          // 获取菜单列表
+			menu.GET("/tree", menuHandler.GetMenuTree)        // 获取菜单树
+			menu.POST("", menuHandler.CreateMenu)             // 创建菜单
+			menu.GET("/:id", menuHandler.GetMenu)             // 获取菜单详情（必须放在最后，避免与/list等冲突）
+			menu.PUT("/:id", menuHandler.UpdateMenu)          // 更新菜单
+			menu.DELETE("/:id", menuHandler.DeleteMenu)       // 删除菜单
+		}
+
+		// 需要认证和权限验证的路由（管理功能）
+		admin := api.Group("/user")
+		admin.Use(middleware.Auth())             // JWT认证
+		admin.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			admin.GET("/list", userHandler.ListUsers) // 获取用户列表（需要权限）
 		}
 	}
 

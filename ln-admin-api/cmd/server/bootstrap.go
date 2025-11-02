@@ -87,6 +87,7 @@ func (b *Bootstrap) MigrateDatabase() error {
 		{&entity.AA06{}, (&entity.AA06{}).GetTableComment, "AA06"},
 		{&entity.AA07{}, (&entity.AA07{}).GetTableComment, "AA07"},
 		{&entity.AA08{}, (&entity.AA08{}).GetTableComment, "AA08"},
+		{&entity.AA09{}, (&entity.AA09{}).GetTableComment, "AA09"},
 	}
 
 	// 执行 AutoMigrate

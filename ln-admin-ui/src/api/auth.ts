@@ -87,9 +87,15 @@ export const authApi = {
     },
 
     /**
-     * 登录
+     * 登录响应数据
      */
-    login(params: LoginParams): Promise<ResponseData<{ token: string; user: UserInfo }>> {
+    login(params: LoginParams): Promise<ResponseData<{
+        accessToken: string
+        refreshToken: string
+        expiresIn: number
+        refreshExpiresIn: number
+        user: UserInfo
+    }>> {
         return request.post('/user/login', params, {
             showSuccessMessage: true,
         })

@@ -261,9 +261,47 @@ func initDefaultUser(
 		return fmt.Errorf("查询用户失败: %w", err)
 	}
 
-	// 如果用户已存在，直接返回（避免重复创建）
+	var userID string
+	// 如果用户已存在，检查并分配角色
 	if existing != nil {
-		logger.Info("默认用户已存在", zap.String("phone", phone))
+		userID = existing.UserID
+		logger.Info("默认用户已存在", zap.String("phone", phone), zap.String("user_id", userID))
+
+		// 检查用户是否已有超级管理员角色
+		userRoles, err := userRoleRepo.FindRolesByUserID(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("查询用户角色失败: %w", err)
+		}
+
+		// 获取超级管理员角色
+		superAdminRole, err := roleRepo.FindByKey(ctx, "super_admin")
+		if err != nil {
+			return fmt.Errorf("查询超级管理员角色失败: %w", err)
+		}
+		if superAdminRole == nil {
+			return fmt.Errorf("超级管理员角色不存在")
+		}
+
+		// 检查用户是否已有超级管理员角色
+		hasSuperAdminRole := false
+		for _, roleID := range userRoles {
+			if roleID == superAdminRole.RoleID {
+				hasSuperAdminRole = true
+				break
+			}
+		}
+
+		// 如果没有超级管理员角色，则分配
+		if !hasSuperAdminRole {
+			logger.Info("为已存在的默认用户分配超级管理员角色",
+				zap.String("phone", phone),
+				zap.String("user_id", userID))
+			if err := permissionService.AssignRoleToUser(ctx, userID, superAdminRole.RoleID); err != nil {
+				logger.Warn("分配角色失败", zap.Error(err))
+				// 不返回错误，继续执行
+			}
+		}
+
 		return nil
 	}
 
@@ -274,7 +312,7 @@ func initDefaultUser(
 	}
 
 	// 生成用户ID
-	userID := uuid.New().String()
+	userID = uuid.New().String()
 
 	// 创建默认用户
 	user := &entity.User{
@@ -291,7 +329,36 @@ func initDefaultUser(
 
 	if err := userRepo.Create(ctx, user); err != nil {
 		if isDuplicateError(err) {
-			logger.Info("默认用户已存在", zap.String("phone", phone))
+			// 用户已存在，重新查询并分配角色
+			existing, err := userRepo.FindByPhone(ctx, phone)
+			if err != nil {
+				return fmt.Errorf("查询用户失败: %w", err)
+			}
+			if existing == nil {
+				return fmt.Errorf("用户创建失败且查询不到用户")
+			}
+			userID = existing.UserID
+
+			// 检查并分配角色
+			userRoles, err := userRoleRepo.FindRolesByUserID(ctx, userID)
+			if err == nil {
+				superAdminRole, err := roleRepo.FindByKey(ctx, "super_admin")
+				if err == nil && superAdminRole != nil {
+					hasSuperAdminRole := false
+					for _, roleID := range userRoles {
+						if roleID == superAdminRole.RoleID {
+							hasSuperAdminRole = true
+							break
+						}
+					}
+					if !hasSuperAdminRole {
+						if err := permissionService.AssignRoleToUser(ctx, userID, superAdminRole.RoleID); err != nil {
+							logger.Warn("分配角色失败", zap.Error(err))
+						}
+					}
+				}
+			}
+			logger.Info("默认用户已存在", zap.String("phone", phone), zap.String("user_id", userID))
 			return nil
 		}
 		return fmt.Errorf("创建默认用户失败: %w", err)

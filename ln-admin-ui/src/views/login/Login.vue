@@ -381,6 +381,15 @@ const handleLogin = async () => {
             captchaCode: loginForm.value.code,
             captchaId: captchaId.value,
         })
+        
+        // 保存token
+        if (res.data && res.data.accessToken) {
+            localStorage.setItem('token', res.data.accessToken)
+            if (res.data.refreshToken) {
+                localStorage.setItem('refreshToken', res.data.refreshToken)
+            }
+        }
+        
         setTimeout(() => {
             router.push('/')
         }, 500)

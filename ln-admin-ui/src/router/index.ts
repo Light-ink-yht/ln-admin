@@ -1,13 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ThemeDemo from '@/views/ThemeDemo.vue'
 import Login from '@/views/login/Login.vue'
+import Layout from '@/views/layout/layout.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
             path: '/',
-            redirect: '/login',
+            name: 'Layout',
+            component: Layout,
         },
         {
             path: '/login',
