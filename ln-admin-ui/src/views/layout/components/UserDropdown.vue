@@ -1,0 +1,205 @@
+<template>
+    <a-dropdown v-if="userInfo" placement="bottomRight" :trigger="['click']">
+        <div class="user-info" :style="userInfoStyle">
+            <a-avatar :src="userInfo.avatar" :size="32">
+                <template v-if="!userInfo.avatar">
+                    <UserOutlined />
+                </template>
+            </a-avatar>
+            <span class="user-name">{{ userInfo.nickname || userInfo.fullName || '用户' }}</span>
+            <DownOutlined />
+        </div>
+        <template #overlay>
+            <a-menu @click="handleMenuClick">
+                <template v-for="(item, index) in menuItems" :key="item.key">
+                    <a-menu-divider v-if="item.divider && index > 0" />
+                    <a-menu-item>
+                        <component v-if="item.icon" :is="getIcon(item.icon)" />
+                        <span>{{ item.label }}</span>
+                    </a-menu-item>
+                </template>
+            </a-menu>
+        </template>
+    </a-dropdown>
+    <div v-else class="user-info" :style="userInfoStyle">
+        <a-avatar :size="32">
+            <UserOutlined />
+        </a-avatar>
+        <span class="user-name">未登录</span>
+    </div>
+</template>
+
+<script lang="ts" setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
+import { UserOutlined, DownOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import { useThemeStore } from '@/stores/modules/theme'
+import { menuApi, type UserMenuItem } from '@/api/menu'
+import type { UserInfo } from '@/api/auth'
+import type { Component } from 'vue'
+
+interface Props {
+    userInfo: UserInfo | null
+}
+
+const props = defineProps<Props>()
+
+const router = useRouter()
+const themeStore = useThemeStore()
+const isDark = computed(() => themeStore.isDark)
+
+const menuItems = ref<UserMenuItem[]>([])
+
+// 图标映射
+const iconMap: Record<string, Component> = {
+    UserOutlined,
+    SettingOutlined,
+    LogoutOutlined,
+}
+
+// 获取图标组件
+const getIcon = (icon: Component | string): Component => {
+    if (typeof icon === 'string') {
+        return iconMap[icon] || UserOutlined
+    }
+    return icon
+}
+
+// 获取用户菜单
+const fetchUserMenus = async () => {
+    try {
+        const res = await menuApi.getUserMenus()
+        if (res.code === 200 || res.code === 0) {
+            menuItems.value = res.data || []
+        }
+    } catch (error) {
+        console.error('获取用户菜单失败:', error)
+        // 失败时使用默认菜单
+        setDefaultMenus()
+    }
+}
+
+// 设置默认菜单
+const setDefaultMenus = () => {
+    menuItems.value = [
+        {
+            key: 'profile',
+            label: '个人资料',
+            icon: 'UserOutlined',
+            onClick: () => {
+                router.push('/profile')
+            },
+        },
+        {
+            key: 'settings',
+            label: '设置',
+            icon: 'SettingOutlined',
+            onClick: () => {
+                router.push('/settings')
+            },
+        },
+        {
+            key: 'logout',
+            label: '退出登录',
+            icon: 'LogoutOutlined',
+            divider: true,
+            onClick: handleLogout,
+        },
+    ]
+}
+
+const handleLogout = async () => {
+    try {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        router.push('/login')
+        message.success('已退出登录')
+    } catch (error) {
+        console.error('退出登录失败:', error)
+        message.error('退出登录失败')
+    }
+}
+
+const handleMenuClick = ({ key }: { key: string }) => {
+    const menuItem = menuItems.value.find((item) => item.key === key)
+    if (menuItem && menuItem.onClick) {
+        menuItem.onClick()
+    }
+}
+
+const userInfoStyle = computed(() => {
+    return {
+        color: isDark.value ? '#fff' : 'rgba(0, 0, 0, 0.85)',
+    }
+})
+
+onMounted(() => {
+    fetchUserMenus()
+})
+</script>
+
+<style scoped>
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border-radius: 4px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.user-info:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.user-name {
+    font-size: 14px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.3s;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .user-name {
+        max-width: 80px;
+        font-size: 13px;
+    }
+
+    .user-info {
+        padding: 2px 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-name {
+        display: none;
+    }
+
+    .user-info {
+        padding: 4px;
+    }
+}
+
+:deep(.ant-dropdown-menu-item) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+</style>
+
+<style>
+/* 浅色模式下的悬停效果 */
+.dark-layout .user-info:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.layout-container:not(.dark-layout) .user-info:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+</style>
+
