@@ -7,7 +7,7 @@ import type { ResponseData } from '@/utils/request'
 export interface LoginParams {
     phone: string
     password: string
-    code: string
+    captchaCode: string
     captchaId: string
 }
 

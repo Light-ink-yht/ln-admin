@@ -1,0 +1,58 @@
+version: '3.0'
+
+services:
+  # MySQL 服务
+  mysql8:
+    image: mysql:8.0.29
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root  # 建议生产环境使用更复杂的密码
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network  # 加入共享网络，方便服务间通信
+
+  # Redis 服务
+  redis:
+    image: 'bitnami/redis:latest'
+    restart: always
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes  # 允许空密码（仅测试用，生产环境需设置密码）
+    ports:
+      - '6379:6379'
+    networks:
+      - app-network  # 加入共享网络
+
+  # Oracle 服务
+  oracle-db:
+    image: container-registry.oracle.com/database/enterprise:12.2.0.1
+    container_name: oracle-db
+    restart: always
+    environment:
+      - ORACLE_SID=ink       # 数据库实例名
+      - ORACLE_PDB=yht224563      # 可插拔数据库名
+      - ORACLE_PWD=yht224563  # 管理员密码（需符合复杂度）
+      - ORACLE_CHARACTERSET=ZHS16GBK  # 改为GBK字符集（Oracle标准名称）
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    networks:
+      - app-network  # 统一使用共享网络，替代单独的 oracle-network
+    healthcheck:
+      test: ["CMD", "sqlplus", "-S", "sys/YourPassword123@//localhost:1521/ORCLCDB as sysdba", "-c", "SELECT 1 FROM DUAL;"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+# 统一网络（所有服务加入同一网络，方便内部通信）
+networks:
+  app-network:
+    driver: bridge
+
+# 数据卷（仅Oracle需要持久化，MySQL和Redis可按需添加）
+volumes:
+  oracle-data:
+    driver: local

@@ -44,7 +44,7 @@ jwt:
 log:
   level: debug # debug, info, warn, error
   format: json # json, text
-  output: file # console, file, both
+  output: console # console, file, both
   path: ./logs
   filename: app.log
   max_size: 100 # MB

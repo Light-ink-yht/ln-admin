@@ -7,7 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // ============================================
 // 📌 后端服务配置 - 只在这里修改后端地址！
 // ============================================
-const BACKEND_URL = 'http://localhost:8081'
+const BACKEND_URL = 'http://localhost:8080'
 
 // https://vite.dev/config/
 export default defineConfig({

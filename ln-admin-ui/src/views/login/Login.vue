@@ -378,7 +378,7 @@ const handleLogin = async () => {
         const res = await authApi.login({
             phone: loginForm.value.phone,
             password: loginForm.value.password,
-            code: loginForm.value.code,
+            captchaCode: loginForm.value.code,
             captchaId: captchaId.value,
         })
         setTimeout(() => {

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/Light-ink-yht/ln-admin/internal/application/dto"
 	"github.com/Light-ink-yht/ln-admin/internal/application/service"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/logger"
@@ -40,24 +42,43 @@ func NewUserHandler(userService *service.UserAppService, smsAppService *service.
 // @Failure      500  {object}  response.Response  "服务器错误"
 // @Router       /user/captcha [get]
 func (h *UserHandler) GetCaptcha(c *gin.Context) {
+	// 记录操作开始
+	clientIP := c.ClientIP()
+	logger.Info("开始获取图形验证码",
+		zap.String("ip", clientIP),
+		zap.String("user_agent", c.Request.UserAgent()))
+
 	// 创建验证码驱动
+	// 参数：height, width, length, maxSkew(最大倾斜角度0-1，越小越清晰), dotCount(噪声点数量，越小越清晰)
 	driver := base64Captcha.NewDriverDigit(
 		config.Cfg.Captcha.Height,
 		config.Cfg.Captcha.Width,
 		config.Cfg.Captcha.Length,
-		0.7,
-		80,
+		0.3, // 降低倾斜角度提高清晰度（从0.7降到0.3）
+		30,  // 降低噪声点数量提高清晰度（从80降到30）
 	)
 
 	// 生成验证码
 	captcha := base64Captcha.NewCaptcha(driver, h.captchaStore)
 	id, b64s, _, err := captcha.Generate()
 	if err != nil {
-		logger.Error("生成验证码失败", zap.Error(err))
+		logger.Error("获取图形验证码失败",
+			zap.String("操作", "生成验证码"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "生成验证码时发生错误"),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.InternalError(c, "生成验证码失败")
 		return
 	}
-	response.Success(c, dto.CaptchaResponse{
+
+	logger.Info("获取图形验证码成功",
+		zap.String("操作", "生成验证码"),
+		zap.String("结果", "成功"),
+		zap.String("captcha_id", id),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "图形验证码获取成功", dto.CaptchaResponse{
 		CaptchaID:   id,
 		CaptchaCode: b64s,
 	})
@@ -79,23 +100,61 @@ func (h *UserHandler) GetCaptcha(c *gin.Context) {
 // @Router       /user/login [post]
 func (h *UserHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
+	loginIP := c.ClientIP()
+
+	// 记录登录尝试开始
+	logger.Info("开始用户登录",
+		zap.String("phone", req.Phone),
+		zap.String("ip", loginIP),
+		zap.String("user_agent", c.Request.UserAgent()))
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("用户登录失败",
+			zap.String("操作", "用户登录"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("phone", req.Phone),
+			zap.String("ip", loginIP),
+			zap.Error(err))
 		response.BadRequest(c, err.Error())
 		return
 	}
 
 	// 验证图片验证码（用于防止机器人）
 	if !h.captchaStore.Verify(req.CaptchaID, req.CaptchaCode, true) {
+		logger.Warn("用户登录失败",
+			zap.String("操作", "用户登录"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "图片验证码错误或已过期"),
+			zap.String("phone", req.Phone),
+			zap.String("captcha_id", req.CaptchaID),
+			zap.String("ip", loginIP))
 		response.Error(c, 400, "图片验证码错误")
 		return
 	}
 
-	// 获取客户端IP
-	loginIP := c.ClientIP()
-
 	// 调用服务（登录不需要短信验证码）
 	loginResp, err := h.userService.Login(c.Request.Context(), req.Phone, req.Password, loginIP)
 	if err != nil {
+		var failureReason string
+		if err == service.ErrUserNotFound {
+			failureReason = "用户不存在：手机号未注册"
+		} else if err == service.ErrUserDisabled {
+			failureReason = "账户已被禁用"
+		} else if err == service.ErrPasswordIncorrect {
+			failureReason = "密码错误"
+		} else {
+			failureReason = "登录服务内部错误"
+		}
+
+		logger.Warn("用户登录失败",
+			zap.String("操作", "用户登录"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", failureReason),
+			zap.String("phone", req.Phone),
+			zap.String("ip", loginIP),
+			zap.Error(err))
+
 		if err == service.ErrUserNotFound {
 			response.Error(c, 400, "用户不存在")
 			return
@@ -108,12 +167,18 @@ func (h *UserHandler) Login(c *gin.Context) {
 			response.Error(c, 400, "密码错误")
 			return
 		}
-		logger.Error("用户登录失败", zap.Error(err))
 		response.InternalError(c, "登录失败")
 		return
 	}
 
-	response.Success(c, loginResp)
+	logger.Info("用户登录成功",
+		zap.String("操作", "用户登录"),
+		zap.String("结果", "成功"),
+		zap.String("phone", req.Phone),
+		zap.String("user_id", loginResp.User.UserId),
+		zap.String("ip", loginIP))
+
+	response.SuccessWithMessage(c, "登录成功，欢迎回来", loginResp)
 }
 
 // Register 用户注册
@@ -129,7 +194,22 @@ func (h *UserHandler) Login(c *gin.Context) {
 // @Router       /user/signup [post]
 func (h *UserHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
+	clientIP := c.ClientIP()
+
+	// 记录注册尝试开始
+	logger.Info("开始用户注册",
+		zap.String("phone", req.Phone),
+		zap.String("ip", clientIP),
+		zap.String("user_agent", c.Request.UserAgent()))
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("用户注册失败",
+			zap.String("操作", "用户注册"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("phone", req.Phone),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.BadRequest(c, err.Error())
 		return
 	}
@@ -137,6 +217,27 @@ func (h *UserHandler) Register(c *gin.Context) {
 	// 调用服务
 	userResp, err := h.userService.Register(c.Request.Context(), &req)
 	if err != nil {
+		var failureReason string
+		if err == service.ErrUserExists {
+			failureReason = "用户已存在：手机号已被注册"
+		} else if err == service.ErrSmsCodeInvalid {
+			failureReason = "短信验证码错误"
+		} else if err == service.ErrSmsCodeExpired {
+			failureReason = "短信验证码已过期"
+		} else if err == service.ErrSmsCodeUsed {
+			failureReason = "短信验证码已使用"
+		} else {
+			failureReason = "注册服务内部错误"
+		}
+
+		logger.Warn("用户注册失败",
+			zap.String("操作", "用户注册"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", failureReason),
+			zap.String("phone", req.Phone),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+
 		if err == service.ErrUserExists {
 			response.Error(c, 400, "用户已存在")
 			return
@@ -145,12 +246,18 @@ func (h *UserHandler) Register(c *gin.Context) {
 			response.Error(c, 400, err.Error())
 			return
 		}
-		logger.Error("用户注册失败", zap.Error(err))
 		response.InternalError(c, "注册失败")
 		return
 	}
 
-	response.Success(c, userResp)
+	logger.Info("用户注册成功",
+		zap.String("操作", "用户注册"),
+		zap.String("结果", "成功"),
+		zap.String("phone", req.Phone),
+		zap.String("user_id", userResp.UserId),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "注册成功，欢迎加入", userResp)
 }
 
 // ForgotPassword 忘记密码
@@ -167,13 +274,49 @@ func (h *UserHandler) Register(c *gin.Context) {
 // @Router       /user/password [post]
 func (h *UserHandler) ForgotPassword(c *gin.Context) {
 	var req dto.ForgotPasswordRequest
+	clientIP := c.ClientIP()
+
+	// 记录重置密码尝试开始
+	logger.Info("开始重置密码",
+		zap.String("phone", req.Phone),
+		zap.String("ip", clientIP),
+		zap.String("user_agent", c.Request.UserAgent()))
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("重置密码失败",
+			zap.String("操作", "重置密码"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("phone", req.Phone),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.BadRequest(c, err.Error())
 		return
 	}
 
 	// 调用服务
 	if err := h.userService.ForgotPassword(c.Request.Context(), &req); err != nil {
+		var failureReason string
+		if err == service.ErrUserNotFound {
+			failureReason = "用户不存在：手机号未注册"
+		} else if err == service.ErrSmsCodeInvalid {
+			failureReason = "短信验证码错误"
+		} else if err == service.ErrSmsCodeExpired {
+			failureReason = "短信验证码已过期"
+		} else if err == service.ErrSmsCodeUsed {
+			failureReason = "短信验证码已使用"
+		} else {
+			failureReason = "重置密码服务内部错误"
+		}
+
+		logger.Warn("重置密码失败",
+			zap.String("操作", "重置密码"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", failureReason),
+			zap.String("phone", req.Phone),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+
 		if err == service.ErrUserNotFound {
 			response.Error(c, 400, "用户不存在")
 			return
@@ -182,12 +325,17 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 			response.Error(c, 400, err.Error())
 			return
 		}
-		logger.Error("重置密码失败", zap.Error(err))
 		response.InternalError(c, "重置密码失败")
 		return
 	}
 
-	response.SuccessWithMessage(c, "密码重置成功", nil)
+	logger.Info("重置密码成功",
+		zap.String("操作", "重置密码"),
+		zap.String("结果", "成功"),
+		zap.String("phone", req.Phone),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "密码重置成功，请使用新密码登录", nil)
 }
 
 // SendSms 发送短信验证码
@@ -204,27 +352,68 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 // @Router       /user/signup/code [post]
 func (h *UserHandler) SendSms(c *gin.Context) {
 	var req dto.SendSmsRequest
+	clientIP := c.ClientIP()
+
+	// 记录发送短信验证码尝试开始
+	logger.Info("开始发送短信验证码",
+		zap.String("phone", req.Phone),
+		zap.String("type", req.Type),
+		zap.String("ip", clientIP),
+		zap.String("user_agent", c.Request.UserAgent()))
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("发送短信验证码失败",
+			zap.String("操作", "发送短信验证码"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("phone", req.Phone),
+			zap.String("type", req.Type),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	// 获取客户端IP
-	clientIP := c.ClientIP()
-
 	// 调用短信服务
 	if err := h.smsAppService.SendSMS(c.Request.Context(), req.Phone, req.Type, clientIP); err != nil {
+		var failureReason string
+		if err == service.ErrSmsSendTooFast {
+			failureReason = "发送验证码过于频繁（1分钟内只能发送一次）"
+		} else {
+			failureReason = "短信服务内部错误"
+		}
+
+		logger.Warn("发送短信验证码失败",
+			zap.String("操作", "发送短信验证码"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", failureReason),
+			zap.String("phone", req.Phone),
+			zap.String("type", req.Type),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+
 		if err == service.ErrSmsSendTooFast {
 			response.Error(c, 429, "发送验证码过于频繁，请稍后再试")
 			return
 		}
-		logger.Error("发送短信验证码失败", zap.Error(err))
 		response.InternalError(c, "发送验证码失败")
 		return
 	}
 
-	logger.Info("发送短信验证码成功", zap.String("phone", req.Phone), zap.String("type", req.Type))
-	response.SuccessWithMessage(c, "验证码已发送", nil)
+	actionMsg := "注册"
+	if req.Type == "forgot" {
+		actionMsg = "重置密码"
+	}
+
+	logger.Info("发送短信验证码成功",
+		zap.String("操作", "发送短信验证码"),
+		zap.String("结果", "成功"),
+		zap.String("phone", req.Phone),
+		zap.String("type", req.Type),
+		zap.String("action", actionMsg),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, fmt.Sprintf("%s验证码已发送至 %s，请注意查收（10分钟内有效）", actionMsg, req.Phone), nil)
 }
 
 // RefreshToken 刷新Token
@@ -240,7 +429,20 @@ func (h *UserHandler) SendSms(c *gin.Context) {
 // @Router       /user/refresh-token [post]
 func (h *UserHandler) RefreshToken(c *gin.Context) {
 	var req dto.RefreshTokenRequest
+	clientIP := c.ClientIP()
+
+	// 记录刷新Token尝试开始
+	logger.Info("开始刷新Token",
+		zap.String("ip", clientIP),
+		zap.String("user_agent", c.Request.UserAgent()))
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("刷新Token失败",
+			zap.String("操作", "刷新Token"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.BadRequest(c, err.Error())
 		return
 	}
@@ -248,12 +450,22 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 	// 调用服务
 	tokenResp, err := h.userService.RefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
-		logger.Error("刷新Token失败", zap.Error(err))
+		logger.Warn("刷新Token失败",
+			zap.String("操作", "刷新Token"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "Token无效或已过期"),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.Error(c, 401, err.Error())
 		return
 	}
 
-	response.Success(c, tokenResp)
+	logger.Info("刷新Token成功",
+		zap.String("操作", "刷新Token"),
+		zap.String("结果", "成功"),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "Token刷新成功，已更新访问凭证", tokenResp)
 }
 
 // GetUserInfo 获取当前用户信息
@@ -269,32 +481,75 @@ func (h *UserHandler) RefreshToken(c *gin.Context) {
 // @Failure      500      {object}  response.Response  "服务器错误"
 // @Router       /user/userinfo [get]
 func (h *UserHandler) GetUserInfo(c *gin.Context) {
+	clientIP := c.ClientIP()
+
 	// 从上下文获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
+		logger.Warn("获取用户信息失败",
+			zap.String("操作", "获取用户信息"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "未授权：用户ID不存在"),
+			zap.String("ip", clientIP))
 		response.Unauthorized(c, "未授权")
 		return
 	}
 
 	userIDStr, ok := userID.(string)
 	if !ok {
+		logger.Error("获取用户信息失败",
+			zap.String("操作", "获取用户信息"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "用户ID类型错误"),
+			zap.String("ip", clientIP))
 		response.InternalError(c, "用户ID类型错误")
 		return
 	}
 
+	// 记录获取用户信息尝试开始
+	logger.Info("开始获取用户信息",
+		zap.String("user_id", userIDStr),
+		zap.String("ip", clientIP))
+
 	// 调用服务
 	userResp, err := h.userService.GetUserInfo(c.Request.Context(), userIDStr)
 	if err != nil {
+		var failureReason string
+		if err == service.ErrUserNotFound {
+			failureReason = "用户不存在"
+		} else {
+			failureReason = "获取用户信息服务内部错误"
+		}
+
+		logger.Warn("获取用户信息失败",
+			zap.String("操作", "获取用户信息"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", failureReason),
+			zap.String("user_id", userIDStr),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+
 		if err == service.ErrUserNotFound {
 			response.Error(c, 404, "用户不存在")
 			return
 		}
-		logger.Error("获取用户信息失败", zap.Error(err))
 		response.InternalError(c, "获取用户信息失败")
 		return
 	}
 
-	response.Success(c, userResp)
+	logger.Info("获取用户信息成功",
+		zap.String("操作", "获取用户信息"),
+		zap.String("结果", "成功"),
+		zap.String("user_id", userIDStr),
+		zap.String("phone", func() string {
+			if userResp.Phone != nil {
+				return *userResp.Phone
+			}
+			return ""
+		}()),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "获取用户信息成功", userResp)
 }
 
 // ListUsers 获取用户列表
@@ -319,7 +574,31 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 // @Router       /user/list [get]
 func (h *UserHandler) ListUsers(c *gin.Context) {
 	var req dto.UserListRequest
+	clientIP := c.ClientIP()
+
+	// 从上下文获取用户ID（用于日志）
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			userID = uidStr
+		}
+	}
+
+	// 记录获取用户列表尝试开始
+	logger.Info("开始获取用户列表",
+		zap.String("user_id", userID),
+		zap.Int("page", req.Page),
+		zap.Int("page_size", req.PageSize),
+		zap.String("ip", clientIP))
+
 	if err := c.ShouldBindQuery(&req); err != nil {
+		logger.Warn("获取用户列表失败",
+			zap.String("操作", "获取用户列表"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("user_id", userID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.BadRequest(c, err.Error())
 		return
 	}
@@ -327,10 +606,31 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	// 调用服务
 	users, total, err := h.userService.ListUsers(c.Request.Context(), &req)
 	if err != nil {
-		logger.Error("获取用户列表失败", zap.Error(err))
+		logger.Error("获取用户列表失败",
+			zap.String("操作", "获取用户列表"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "获取用户列表服务内部错误"),
+			zap.String("user_id", userID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
 		response.InternalError(c, "获取用户列表失败")
 		return
 	}
+
+	userCount := 0
+	if users != nil {
+		userCount = len(users)
+	}
+
+	logger.Info("获取用户列表成功",
+		zap.String("操作", "获取用户列表"),
+		zap.String("结果", "成功"),
+		zap.String("user_id", userID),
+		zap.Int64("total", total),
+		zap.Int("page", req.Page),
+		zap.Int("page_size", req.PageSize),
+		zap.Int("count", userCount),
+		zap.String("ip", clientIP))
 
 	response.PageSuccess(c, users, total, req.Page, req.PageSize)
 }

@@ -45,4 +45,5 @@ Thumbs.db
 # Build output
 dist/
 build/
+./docker-compose.yaml
 
