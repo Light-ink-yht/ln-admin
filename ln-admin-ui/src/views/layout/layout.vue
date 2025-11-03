@@ -27,7 +27,11 @@
                 />
                 <div class="content-wrapper">
                     <a-layout-content :style="contentStyle">
-                        <slot>Content</slot>
+                        <transition name="page-fade" mode="out-in">
+                            <router-view v-slot="{ Component }">
+                                <component :is="Component" />
+                            </router-view>
+                        </transition>
                     </a-layout-content>
                 </div>
             </a-layout>
@@ -42,7 +46,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from '@/stores/modules/theme'
-import { authApi, type UserInfo } from '@/api/auth'
+import { useUserStore } from '@/stores/modules/user'
 import Header from './components/Header.vue'
 import Sidebar from './components/Sidebar.vue'
 import Footer from './components/Footer.vue'
@@ -52,9 +56,10 @@ import type { TabItem } from './components/PageTabs.vue'
 const router = useRouter()
 const route = useRoute()
 const themeStore = useThemeStore()
+const userStore = useUserStore()
 
-// 用户信息
-const userInfo = ref<UserInfo | null>(null)
+// 用户信息（从store获取）
+const userInfo = computed(() => userStore.userInfo)
 const isDark = computed(() => themeStore.isDark)
 
 // 移动端侧边栏控制
@@ -70,8 +75,9 @@ const checkMobile = () => {
     isMobile.value = window.innerWidth <= 768
 }
 
-onMounted(() => {
-    fetchUserInfo()
+onMounted(async () => {
+    // 初始化用户信息（从存储恢复或从服务器获取）
+    await userStore.initUserInfo()
     checkMobile()
     window.addEventListener('resize', checkMobile)
 })
@@ -100,6 +106,10 @@ const routeTitleMap: Record<string, string> = {
 
 // 根据路径获取标题
 const getRouteTitle = (path: string, name?: string | symbol): string => {
+    // 优先使用路由的 meta.title
+    if (route.meta?.title && typeof route.meta.title === 'string') {
+        return route.meta.title
+    }
     // 优先使用映射表中的标题
     if (routeTitleMap[path]) {
         return routeTitleMap[path]
@@ -171,27 +181,9 @@ const contentStyle = computed(() => {
     }
 })
 
-// 获取用户信息
+// 获取用户信息（已迁移到store，保留此函数用于向后兼容或手动刷新）
 const fetchUserInfo = async () => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-        console.warn('未找到token，跳过获取用户信息')
-        return
-    }
-
-    try {
-        const res = await authApi.getUserInfo()
-        if (res.code === 200 || res.code === 0) {
-            userInfo.value = res.data
-        }
-    } catch (error: any) {
-        console.error('获取用户信息失败:', error)
-        if (error?.response?.status === 401 || error?.message?.includes('未授权')) {
-            localStorage.removeItem('token')
-            localStorage.removeItem('refreshToken')
-            router.push('/login')
-        }
-    }
+    await userStore.fetchUserInfo()
 }
 
 // 标签页管理
@@ -409,5 +401,27 @@ watch(
     padding: 0;
     flex-shrink: 0;
     margin: 0;
+}
+
+/* 页面切换动画 */
+.page-fade-enter-active,
+.page-fade-leave-active {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-fade-enter-from {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.page-fade-leave-to {
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+.page-fade-enter-to,
+.page-fade-leave-from {
+    opacity: 1;
+    transform: translateX(0);
 }
 </style>

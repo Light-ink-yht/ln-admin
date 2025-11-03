@@ -184,11 +184,13 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import { useThemeStore } from '@/stores/modules/theme'
+import { useUserStore } from '@/stores/modules/user'
 import { authApi } from '@/api/auth'
 import type { FormInstance } from 'ant-design-vue'
 
 const router = useRouter()
 const themeStore = useThemeStore()
+const userStore = useUserStore()
 
 // 主题色
 const primaryColor = computed(() => themeStore.colorPrimary)
@@ -382,12 +384,14 @@ const handleLogin = async () => {
             captchaId: captchaId.value,
         })
         
-        // 保存token
-        if (res.data && res.data.accessToken) {
-            localStorage.setItem('token', res.data.accessToken)
-            if (res.data.refreshToken) {
-                localStorage.setItem('refreshToken', res.data.refreshToken)
-            }
+        // 保存用户信息和token到store
+        if (res.data && res.data.user && res.data.accessToken) {
+            userStore.login(
+                res.data.user,
+                res.data.accessToken,
+                res.data.refreshToken
+            )
+            message.success('登录成功')
         }
         
         setTimeout(() => {

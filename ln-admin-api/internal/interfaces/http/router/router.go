@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/Light-ink-yht/ln-admin/internal/application/service"
-	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/repository"
+	infraRepo "github.com/Light-ink-yht/ln-admin/internal/infrastructure/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/interfaces/http/handler"
 	"github.com/Light-ink-yht/ln-admin/internal/interfaces/http/middleware"
 
@@ -18,7 +18,7 @@ import (
 // SetupRouter 设置路由
 func SetupRouter(userAppService *service.UserAppService, smsAppService *service.SMSAppService, permissionService *service.PermissionService) *gin.Engine {
 	// 创建菜单仓库和服务
-	menuRepo := repository.NewMenuRepository()
+	menuRepo := infraRepo.NewMenuRepository()
 	menuService := service.NewMenuService(permissionService, menuRepo)
 	menuHandler := handler.NewMenuHandler(menuService)
 	// 创建Gin引擎
@@ -68,6 +68,21 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 			menu.GET("/:id", menuHandler.GetMenu)             // 获取菜单详情（必须放在最后，避免与/list等冲突）
 			menu.PUT("/:id", menuHandler.UpdateMenu)          // 更新菜单
 			menu.DELETE("/:id", menuHandler.DeleteMenu)       // 删除菜单
+		}
+
+		// 工作台相关路由（需要认证）
+		workbenchRepo := infraRepo.NewWorkbenchRepository()
+		workbenchService := service.NewWorkbenchService(workbenchRepo, permissionService)
+		workbenchHandler := handler.NewWorkbenchHandler(workbenchService)
+		workbench := api.Group("/workbench")
+		workbench.Use(middleware.Auth()) // 只需JWT认证
+		{
+			workbench.GET("/config", workbenchHandler.GetWorkbenchConfig)                  // 获取当前用户的工作台配置
+			workbench.GET("/config/list", workbenchHandler.ListWorkbenchConfigs)           // 获取工作台配置列表
+			workbench.GET("/config/:config_id", workbenchHandler.GetWorkbenchConfigByID)   // 获取工作台配置详情
+			workbench.POST("/config", workbenchHandler.CreateWorkbenchConfig)              // 创建工作台配置
+			workbench.PUT("/config", workbenchHandler.UpdateWorkbenchConfig)               // 更新工作台配置
+			workbench.DELETE("/config/:config_id", workbenchHandler.DeleteWorkbenchConfig) // 删除工作台配置
 		}
 
 		// 需要认证和权限验证的路由（管理功能）

@@ -1,43 +1,46 @@
 <template>
     <a-layout-sider width="200" :style="siderStyle" class="sidebar-container">
-        <a-menu
-            v-model:selectedKeys="selectedKeys"
-            v-model:openKeys="openKeys"
-            mode="inline"
-            :theme="isDark ? 'dark' : 'light'"
-            :style="{ height: '100%', borderRight: 0 }"
-            @click="handleMenuClick"
-        >
-            <!-- 有子菜单的情况 -->
-            <template v-for="menu in menuList" :key="menu.key">
-                <a-sub-menu v-if="menu.children && menu.children.length > 0" :key="`sub-${menu.key}`">
+        <a-spin :spinning="menuList.length === 0" style="width: 100%;">
+            <a-menu
+                v-model:selectedKeys="selectedKeys"
+                v-model:openKeys="openKeys"
+                mode="inline"
+                :theme="isDark ? 'dark' : 'light'"
+                :style="{ height: '100%', borderRight: 0 }"
+                @click="handleMenuClick"
+            >
+                <!-- 有子菜单的情况 -->
+                <a-sub-menu
+                    v-for="(menu, index) in menusWithChildren"
+                    :key="menu?.key ? `sub-${menu.key}` : `sub-menu-${index}`"
+                >
                     <template #title>
                         <span>
-                            <component v-if="menu.icon" :is="getIcon(menu.icon)" />
-                            {{ menu.title }}
+                            <component v-if="menu?.icon" :is="getIcon(menu.icon)" />
+                            {{ menu?.title || '' }}
                         </span>
                     </template>
                     <a-menu-item
-                        v-for="child in menu.children"
-                        :key="child.key"
+                        v-for="(child, childIndex) in (menu.children || [])"
+                        :key="child?.key || `child-${childIndex}`"
                         @click="handleMenuItemClick(child)"
                     >
-                        {{ child.title }}
+                        {{ child?.title || '' }}
                     </a-menu-item>
                 </a-sub-menu>
                 <!-- 无子菜单的情况 -->
                 <a-menu-item
-                    v-else
-                    :key="`item-${menu.key}`"
+                    v-for="(menu, index) in menusWithoutChildren"
+                    :key="menu?.key ? `item-${menu.key}` : `item-menu-${index}`"
                     @click="handleMenuItemClick(menu)"
                 >
-                    <span v-if="menu.icon">
+                    <span v-if="menu?.icon">
                         <component :is="getIcon(menu.icon)" />
                     </span>
-                    <span>{{ menu.title }}</span>
+                    <span>{{ menu?.title || '' }}</span>
                 </a-menu-item>
-            </template>
-        </a-menu>
+            </a-menu>
+        </a-spin>
     </a-layout-sider>
 </template>
 
@@ -67,9 +70,56 @@ const emit = defineEmits<{
     close: []
 }>()
 
-const menuList = ref<MenuItem[]>([])
+// 初始化默认菜单，确保组件渲染时就有数据
+const getInitialMenus = (): MenuItem[] => [
+    {
+        key: 'dashboard',
+        title: '仪表盘',
+        path: '/dashboard',
+        icon: 'DashboardOutlined',
+        children: [
+            {
+                key: 'workbench',
+                title: '工作台',
+                path: '/dashboard/workbench',
+            },
+            {
+                key: 'analysis',
+                title: '分析页',
+                path: '/dashboard/analysis',
+            },
+        ],
+    },
+    {
+        key: 'user',
+        title: '用户管理',
+        path: '/user/list',
+        icon: 'TeamOutlined',
+    },
+    {
+        key: 'system',
+        title: '系统设置',
+        path: '/system/config',
+        icon: 'SettingOutlined',
+    },
+]
+
+const menuList = ref<MenuItem[]>(getInitialMenus())
 const selectedKeys = ref<string[]>([])
-const openKeys = ref<string[]>([])
+const openKeys = ref<string[]>(['dashboard'])
+
+// 分离有子菜单和无子菜单的项，确保数据安全
+const menusWithChildren = computed(() => {
+    return menuList.value.filter((menu) => {
+        return menu && menu.children && Array.isArray(menu.children) && menu.children.length > 0
+    })
+})
+
+const menusWithoutChildren = computed(() => {
+    return menuList.value.filter((menu) => {
+        return menu && (!menu.children || !Array.isArray(menu.children) || menu.children.length === 0)
+    })
+})
 
 // 图标映射
 const iconMap: Record<string, Component> = {
@@ -95,8 +145,8 @@ const getIcon = (icon: Component | string): Component => {
 const fetchMenus = async () => {
     try {
         const res = await menuApi.getSidebarMenus()
-        if (res.code === 200 || res.code === 0) {
-            menuList.value = res.data || []
+        if ((res.code === 200 || res.code === 0) && res.data && res.data.length > 0) {
+            menuList.value = res.data
             // 默认展开第一个有子菜单的项
             const firstSubMenu = menuList.value.find((m) => m.children && m.children.length > 0)
             if (firstSubMenu) {
@@ -105,10 +155,10 @@ const fetchMenus = async () => {
             // 根据当前路由设置选中项
             updateSelectedKeys()
         }
+        // 如果返回的数据为空，保持默认菜单
     } catch (error) {
-        console.error('获取菜单失败:', error)
-        // 失败时使用默认菜单
-        setDefaultMenus()
+        console.error('获取菜单失败，使用默认菜单:', error)
+        // 失败时保持默认菜单（已在初始化时设置）
     }
 }
 
@@ -116,40 +166,37 @@ const fetchMenus = async () => {
 const setDefaultMenus = () => {
     menuList.value = [
         {
-            key: 'sub1',
-            title: 'subnav 1',
-            icon: 'UserOutlined',
+            key: 'dashboard',
+            title: '仪表盘',
+            path: '/dashboard',
+            icon: 'DashboardOutlined',
             children: [
-                { key: '1', title: 'option1', path: '/' },
-                { key: '2', title: 'option2', path: '/' },
-                { key: '3', title: 'option3', path: '/' },
-                { key: '4', title: 'option4', path: '/' },
+                {
+                    key: 'workbench',
+                    title: '工作台',
+                    path: '/dashboard/workbench',
+                },
+                {
+                    key: 'analysis',
+                    title: '分析页',
+                    path: '/dashboard/analysis',
+                },
             ],
         },
         {
-            key: 'sub2',
-            title: 'subnav 2',
-            icon: 'LaptopOutlined',
-            children: [
-                { key: '5', title: 'option5', path: '/' },
-                { key: '6', title: 'option6', path: '/' },
-                { key: '7', title: 'option7', path: '/' },
-                { key: '8', title: 'option8', path: '/' },
-            ],
+            key: 'user',
+            title: '用户管理',
+            path: '/user/list',
+            icon: 'TeamOutlined',
         },
         {
-            key: 'sub3',
-            title: 'subnav 3',
-            icon: 'NotificationOutlined',
-            children: [
-                { key: '9', title: 'option9', path: '/' },
-                { key: '10', title: 'option10', path: '/' },
-                { key: '11', title: 'option11', path: '/' },
-                { key: '12', title: 'option12', path: '/' },
-            ],
+            key: 'system',
+            title: '系统设置',
+            path: '/system/config',
+            icon: 'SettingOutlined',
         },
     ]
-    openKeys.value = ['sub1']
+    openKeys.value = ['dashboard']
     updateSelectedKeys()
 }
 
@@ -198,8 +245,10 @@ watch(
     { immediate: true }
 )
 
-onMounted(() => {
-    fetchMenus()
+// 初始化时立即获取菜单
+onMounted(async () => {
+    // 尝试从 API 获取最新菜单（如果失败则保持默认菜单）
+    await fetchMenus()
 })
 
 const siderStyle = computed(() => {
@@ -225,6 +274,7 @@ const siderStyle = computed(() => {
     overflow-x: hidden;
     transition: background-color 0.3s;
 }
+
 
 /* 移动端样式 */
 @media (max-width: 768px) {

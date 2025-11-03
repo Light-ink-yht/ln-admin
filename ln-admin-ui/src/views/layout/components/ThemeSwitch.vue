@@ -23,43 +23,53 @@
                         <span>跟随系统</span>
                     </a-menu-item>
                     <a-menu-divider />
-                    <a-sub-menu key="color" @title-click.stop>
-                        <template #title>
-                            <span>主题色</span>
-                        </template>
-                        <div class="color-picker-menu">
-                            <div class="preset-colors">
-                                <div
-                                    v-for="color in presetColors"
-                                    :key="color.value"
-                                    class="color-item"
-                                    :class="{ active: colorPrimary === color.value }"
-                                    :style="{ backgroundColor: color.value }"
-                                    @click="handleColorChange(color.value)"
-                                >
-                                    <CheckOutlined v-if="colorPrimary === color.value" class="color-check" />
-                                </div>
-                            </div>
-                            <div class="custom-color-picker">
-                                <a-color-picker
-                                    v-model:value="customColor"
-                                    :show-text="true"
-                                    size="small"
-                                    @change="handleCustomColorChange"
-                                />
-                            </div>
-                        </div>
-                    </a-sub-menu>
+                    <a-menu-item key="color" @click.stop="colorPickerVisible = true">
+                        <SettingOutlined />
+                        <span>主题色</span>
+                    </a-menu-item>
                 </a-menu>
             </template>
         </a-dropdown>
+        
+        <!-- 颜色选择器弹窗 -->
+        <a-modal
+            v-model:open="colorPickerVisible"
+            title="选择主题色"
+            :footer="null"
+            width="320px"
+            :mask-closable="true"
+        >
+            <div class="color-picker-menu">
+                <div class="preset-colors">
+                    <div
+                        v-for="color in presetColors"
+                        :key="color.value"
+                        class="color-item"
+                        :class="{ active: colorPrimary === color.value }"
+                        :style="{ backgroundColor: color.value }"
+                        @click="handleColorChange(color.value)"
+                    >
+                        <CheckOutlined v-if="colorPrimary === color.value" class="color-check" />
+                    </div>
+                </div>
+                <div class="custom-color-picker">
+                    <div class="custom-color-label">自定义颜色：</div>
+                    <a-color-picker
+                        v-model:value="customColor"
+                        :show-text="true"
+                        size="small"
+                        @change="handleCustomColorChange"
+                    />
+                </div>
+            </div>
+        </a-modal>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { BulbOutlined, BulbFilled, DesktopOutlined, CheckOutlined } from '@ant-design/icons-vue'
+import { BulbOutlined, BulbFilled, DesktopOutlined, CheckOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { useThemeStore } from '@/stores/modules/theme'
 import { ThemeMode, PRESET_COLORS, COLOR_NAMES } from '@/theme/config'
 
@@ -67,6 +77,7 @@ const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.isDark)
 const colorPrimary = computed(() => themeStore.colorPrimary)
 const customColor = ref<string>(themeStore.colorPrimary)
+const colorPickerVisible = ref(false)
 
 // 预设颜色列表
 const presetColors = computed(() => {
@@ -99,12 +110,14 @@ const handleColorChange = (color: string) => {
     themeStore.setColorPrimary(color)
     customColor.value = color
     message.success('主题色已更新')
+    colorPickerVisible.value = false
 }
 
 const handleCustomColorChange = (value: string) => {
     if (value) {
         themeStore.setColorPrimary(value)
         message.success('主题色已更新')
+        colorPickerVisible.value = false
     }
 }
 </script>
@@ -132,10 +145,8 @@ const handleCustomColorChange = (value: string) => {
 .color-picker-menu {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 8px 24px 12px 24px;
-    min-width: 240px;
-    background: transparent;
+    gap: 16px;
+    padding: 8px 0;
 }
 
 .preset-colors {
@@ -180,7 +191,21 @@ const handleCustomColorChange = (value: string) => {
 }
 
 .custom-color-picker {
-    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.custom-color-label {
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.85);
+    margin-bottom: 4px;
+}
+
+body.dark-mode {
+    .custom-color-label {
+        color: rgba(255, 255, 255, 0.85);
+    }
 }
 
 :deep(.ant-color-picker) {
@@ -191,13 +216,6 @@ const handleCustomColorChange = (value: string) => {
     width: 100%;
 }
 
-:deep(.ant-menu-submenu-title) {
-    padding-right: 24px;
-}
-
-:deep(.ant-menu-submenu-popup) {
-    padding: 0;
-}
 </style>
 
 <style>

@@ -1,12 +1,12 @@
 <template>
-    <a-dropdown v-if="userInfo" placement="bottomRight" :trigger="['click']">
+    <a-dropdown v-if="currentUserInfo" placement="bottomRight" :trigger="['click']">
         <div class="user-info" :style="userInfoStyle">
-            <a-avatar :src="userInfo.avatar" :size="32">
-                <template v-if="!userInfo.avatar">
+            <a-avatar :src="currentUserInfo.avatar" :size="32">
+                <template v-if="!currentUserInfo.avatar">
                     <UserOutlined />
                 </template>
             </a-avatar>
-            <span class="user-name">{{ userInfo.nickname || userInfo.fullName || '用户' }}</span>
+            <span class="user-name">{{ currentUserInfo.nickname || currentUserInfo.fullName || '用户' }}</span>
             <DownOutlined />
         </div>
         <template #overlay>
@@ -35,6 +35,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UserOutlined, DownOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons-vue'
 import { useThemeStore } from '@/stores/modules/theme'
+import { useUserStore } from '@/stores/modules/user'
 import { menuApi, type UserMenuItem } from '@/api/menu'
 import type { UserInfo } from '@/api/auth'
 import type { Component } from 'vue'
@@ -47,7 +48,11 @@ const props = defineProps<Props>()
 
 const router = useRouter()
 const themeStore = useThemeStore()
+const userStore = useUserStore()
 const isDark = computed(() => themeStore.isDark)
+
+// 优先使用store中的用户信息
+const currentUserInfo = computed(() => props.userInfo || userStore.userInfo)
 
 const menuItems = ref<UserMenuItem[]>([])
 
@@ -111,12 +116,20 @@ const setDefaultMenus = () => {
 
 const handleLogout = async () => {
     try {
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
+        // 调用退出登录API（可选）
+        // await authApi.logout()
+        
+        // 清除store中的用户信息
+        userStore.logout()
+        
+        // 跳转到登录页
         router.push('/login')
         message.success('已退出登录')
     } catch (error) {
         console.error('退出登录失败:', error)
+        // 即使API调用失败，也清除本地信息
+        userStore.logout()
+        router.push('/login')
         message.error('退出登录失败')
     }
 }
