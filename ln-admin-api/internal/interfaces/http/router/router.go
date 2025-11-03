@@ -21,6 +21,9 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 	menuRepo := infraRepo.NewMenuRepository()
 	menuService := service.NewMenuService(permissionService, menuRepo)
 	menuHandler := handler.NewMenuHandler(menuService)
+	// 创建用户仓库（用于handler）
+	userRepo := infraRepo.NewUserRepository()
+
 	// 创建Gin引擎
 	r := gin.New()
 
@@ -29,8 +32,10 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 	r.Use(middleware.Recovery())
 	r.Use(middleware.CORS())
 
-	// 创建用户处理器
+	// 创建处理器
 	userHandler := handler.NewUserHandler(userAppService, smsAppService)
+	roleHandler := handler.NewRoleHandler(permissionService, userRepo)
+	permissionHandler := handler.NewPermissionHandler(permissionService, userRepo)
 
 	// API路由组
 	api := r.Group("/api")
@@ -90,7 +95,50 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 		admin.Use(middleware.Auth())             // JWT认证
 		admin.Use(middleware.CasbinMiddleware()) // Casbin权限验证
 		{
-			admin.GET("/list", userHandler.ListUsers) // 获取用户列表（需要权限）
+			admin.GET("/list", userHandler.ListUsers)                        // 获取用户列表
+			admin.POST("", userHandler.CreateUser)                           // 创建用户
+			admin.POST("/:userId/permissions", userHandler.GrantPermissions) // 给用户授权（必须放在/:userId之前）
+			admin.GET("/:userId", userHandler.GetUserDetail)                 // 获取用户详情（必须放在最后）
+			admin.PUT("/:userId", userHandler.UpdateUser)                    // 更新用户
+			admin.DELETE("/:userId", userHandler.DeleteUser)                 // 删除用户
+		}
+
+		// 角色相关路由（需要认证和权限验证）
+		role := api.Group("/role")
+		role.Use(middleware.Auth())             // JWT认证
+		role.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			role.GET("/list", roleHandler.ListRoles)        // 获取角色列表
+			role.POST("", roleHandler.CreateRole)           // 创建角色
+			role.GET("/:roleId", roleHandler.GetRoleDetail) // 获取角色详情（必须放在最后）
+			role.PUT("/:roleId", roleHandler.UpdateRole)    // 更新角色
+			role.DELETE("/:roleId", roleHandler.DeleteRole) // 删除角色
+		}
+
+		// 角色相关路由（只需要认证，不需要权限验证，用于下拉选择等）
+		roleNoAuth := api.Group("/role")
+		roleNoAuth.Use(middleware.Auth()) // 只需JWT认证
+		{
+			roleNoAuth.GET("/all", roleHandler.GetAllRoles) // 获取所有角色（不分页）
+		}
+
+		// 权限相关路由（需要认证和权限验证）
+		permission := api.Group("/permission")
+		permission.Use(middleware.Auth())             // JWT认证
+		permission.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			permission.GET("/list", permissionHandler.ListPermissions)              // 获取权限列表
+			permission.POST("", permissionHandler.CreatePermission)                 // 创建权限
+			permission.GET("/:permissionId", permissionHandler.GetPermissionDetail) // 获取权限详情（必须放在最后）
+			permission.PUT("/:permissionId", permissionHandler.UpdatePermission)    // 更新权限
+			permission.DELETE("/:permissionId", permissionHandler.DeletePermission) // 删除权限
+		}
+
+		// 权限相关路由（只需要认证，不需要权限验证，用于下拉选择等）
+		permissionNoAuth := api.Group("/permission")
+		permissionNoAuth.Use(middleware.Auth()) // 只需JWT认证
+		{
+			permissionNoAuth.GET("/all", permissionHandler.GetAllPermissions) // 获取所有权限（不分页）
 		}
 	}
 

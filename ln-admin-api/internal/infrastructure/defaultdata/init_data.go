@@ -3,10 +3,12 @@ package defaultdata
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Light-ink-yht/ln-admin/internal/application/service"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
+	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/logger"
 	"github.com/Light-ink-yht/ln-admin/pkg/config"
 	"github.com/Light-ink-yht/ln-admin/pkg/service/casbin_service"
@@ -137,10 +139,21 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			ModifierID:     "system",
 		},
 		{
+			PermissionID:   "perm_user_detail",
+			PermissionKey:  "user:detail",
+			PermissionName: "用户详情",
+			ResourcePath:   "/api/user/*",
+			Method:         "GET",
+			Description:    "查看用户详情",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
 			PermissionID:   "perm_user_create",
 			PermissionKey:  "user:create",
 			PermissionName: "创建用户",
-			ResourcePath:   "/api/user/create",
+			ResourcePath:   "/api/user",
 			Method:         "POST",
 			Description:    "创建新用户",
 			Status:         "1",
@@ -151,7 +164,7 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			PermissionID:   "perm_user_update",
 			PermissionKey:  "user:update",
 			PermissionName: "更新用户",
-			ResourcePath:   "/api/user/update",
+			ResourcePath:   "/api/user/*",
 			Method:         "PUT",
 			Description:    "更新用户信息",
 			Status:         "1",
@@ -162,9 +175,132 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			PermissionID:   "perm_user_delete",
 			PermissionKey:  "user:delete",
 			PermissionName: "删除用户",
-			ResourcePath:   "/api/user/delete",
+			ResourcePath:   "/api/user/*",
 			Method:         "DELETE",
 			Description:    "删除用户",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_user_grant",
+			PermissionKey:  "user:grant",
+			PermissionName: "用户授权",
+			ResourcePath:   "/api/user/*",
+			Method:         "POST",
+			Description:    "给用户直接分配权限",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		// 角色管理权限
+		{
+			PermissionID:   "perm_role_list",
+			PermissionKey:  "role:list",
+			PermissionName: "角色列表",
+			ResourcePath:   "/api/role/list",
+			Method:         "GET",
+			Description:    "查看角色列表",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_role_detail",
+			PermissionKey:  "role:detail",
+			PermissionName: "角色详情",
+			ResourcePath:   "/api/role/*",
+			Method:         "GET",
+			Description:    "查看角色详情",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_role_create",
+			PermissionKey:  "role:create",
+			PermissionName: "创建角色",
+			ResourcePath:   "/api/role",
+			Method:         "POST",
+			Description:    "创建新角色",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_role_update",
+			PermissionKey:  "role:update",
+			PermissionName: "更新角色",
+			ResourcePath:   "/api/role/*",
+			Method:         "PUT",
+			Description:    "更新角色信息",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_role_delete",
+			PermissionKey:  "role:delete",
+			PermissionName: "删除角色",
+			ResourcePath:   "/api/role/*",
+			Method:         "DELETE",
+			Description:    "删除角色",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		// 权限管理权限
+		{
+			PermissionID:   "perm_permission_list",
+			PermissionKey:  "permission:list",
+			PermissionName: "权限列表",
+			ResourcePath:   "/api/permission/list",
+			Method:         "GET",
+			Description:    "查看权限列表",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_permission_detail",
+			PermissionKey:  "permission:detail",
+			PermissionName: "权限详情",
+			ResourcePath:   "/api/permission/*",
+			Method:         "GET",
+			Description:    "查看权限详情",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_permission_create",
+			PermissionKey:  "permission:create",
+			PermissionName: "创建权限",
+			ResourcePath:   "/api/permission",
+			Method:         "POST",
+			Description:    "创建新权限",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_permission_update",
+			PermissionKey:  "permission:update",
+			PermissionName: "更新权限",
+			ResourcePath:   "/api/permission/*",
+			Method:         "PUT",
+			Description:    "更新权限信息",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_permission_delete",
+			PermissionKey:  "permission:delete",
+			PermissionName: "删除权限",
+			ResourcePath:   "/api/permission/*",
+			Method:         "DELETE",
+			Description:    "删除权限",
 			Status:         "1",
 			CreatorID:      "system",
 			ModifierID:     "system",
@@ -302,6 +438,34 @@ func initDefaultUser(
 			}
 		}
 
+		// 确保Casbin策略中存在用户角色关系
+		enforcer := casbin.GetEnforcer()
+		if enforcer != nil {
+			roles, err := enforcer.GetRolesForUser(userID)
+			hasRoleInCasbin := false
+			if err == nil {
+				for _, role := range roles {
+					if role == superAdminRole.RoleKey {
+						hasRoleInCasbin = true
+						break
+					}
+				}
+			}
+
+			if !hasRoleInCasbin {
+				casbinSvc := casbin_service.NewCasbinService()
+				if err := casbinSvc.AddRoleForUser(ctx, userID, superAdminRole.RoleKey); err != nil {
+					logger.Warn("添加Casbin用户角色策略失败", zap.Error(err))
+				} else {
+					logger.Info("已添加Casbin用户角色策略", zap.String("user_id", userID), zap.String("role", superAdminRole.RoleKey))
+					// 重新加载策略
+					if err := enforcer.LoadPolicy(); err != nil {
+						logger.Warn("重新加载Casbin策略失败", zap.Error(err))
+					}
+				}
+			}
+		}
+
 		return nil
 	}
 
@@ -415,14 +579,23 @@ func assignAllPermissionsToAdmin(
 	casbinSvc := casbin_service.NewCasbinService()
 	assignedCount := 0
 	for _, permission := range permissions {
+		// 移除路径前缀 /api（因为中间件会移除这个前缀）
+		resourcePath := strings.TrimPrefix(permission.ResourcePath, "/api")
+
 		// 使用Casbin直接添加策略（p, role_key, resource_path, method）
-		if err := casbinSvc.AddPolicy(ctx, superAdminRole.RoleKey, permission.ResourcePath, permission.Method); err != nil {
+		// 注意：resourcePath 已经移除了 /api 前缀，与中间件验证时的路径格式一致
+		if err := casbinSvc.AddPolicy(ctx, superAdminRole.RoleKey, resourcePath, permission.Method); err != nil {
 			logger.Warn("为超级管理员分配权限失败",
 				zap.String("permission", permission.PermissionName),
+				zap.String("resource_path", resourcePath),
 				zap.Error(err))
 			continue
 		}
 		assignedCount++
+		logger.Debug("为超级管理员添加权限策略",
+			zap.String("role", superAdminRole.RoleKey),
+			zap.String("resource", resourcePath),
+			zap.String("method", permission.Method))
 	}
 
 	logger.Info("为超级管理员分配权限完成",

@@ -587,8 +587,6 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	// 记录获取用户列表尝试开始
 	logger.Info("开始获取用户列表",
 		zap.String("user_id", userID),
-		zap.Int("page", req.Page),
-		zap.Int("page_size", req.PageSize),
 		zap.String("ip", clientIP))
 
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -603,8 +601,109 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	// 调用服务
-	users, total, err := h.userService.ListUsers(c.Request.Context(), &req)
+	// 设置默认值
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	// 构建查询条件（支持数组格式）
+	conditions := make(map[string]interface{})
+
+	// 处理可能为数组的查询参数
+	// 优先检查QueryArray（数组格式），如果没有则使用Query（单个值）
+	phoneValues := c.QueryArray("phone")
+	if len(phoneValues) > 0 {
+		values := make([]interface{}, 0, len(phoneValues))
+		for _, v := range phoneValues {
+			if v != "" {
+				values = append(values, v)
+			}
+		}
+		if len(values) > 0 {
+			if len(values) == 1 {
+				conditions["phone"] = values[0]
+			} else {
+				conditions["phone"] = values
+			}
+		}
+	} else if req.Phone != "" {
+		conditions["phone"] = req.Phone
+	}
+
+	emailValues := c.QueryArray("email")
+	if len(emailValues) > 0 {
+		values := make([]interface{}, 0, len(emailValues))
+		for _, v := range emailValues {
+			if v != "" {
+				values = append(values, v)
+			}
+		}
+		if len(values) > 0 {
+			if len(values) == 1 {
+				conditions["email"] = values[0]
+			} else {
+				conditions["email"] = values
+			}
+		}
+	} else if req.Email != "" {
+		conditions["email"] = req.Email
+	}
+
+	nicknameValues := c.QueryArray("nickname")
+	if len(nicknameValues) > 0 {
+		values := make([]interface{}, 0, len(nicknameValues))
+		for _, v := range nicknameValues {
+			if v != "" {
+				values = append(values, v)
+			}
+		}
+		if len(values) > 0 {
+			if len(values) == 1 {
+				conditions["nickname"] = values[0]
+			} else {
+				conditions["nickname"] = values
+			}
+		}
+	} else if req.Nickname != "" {
+		conditions["nickname"] = req.Nickname
+	}
+
+	fullNameValues := c.QueryArray("full_name")
+	if len(fullNameValues) > 0 {
+		values := make([]interface{}, 0, len(fullNameValues))
+		for _, v := range fullNameValues {
+			if v != "" {
+				values = append(values, v)
+			}
+		}
+		if len(values) > 0 {
+			if len(values) == 1 {
+				conditions["full_name"] = values[0]
+			} else {
+				conditions["full_name"] = values
+			}
+		}
+	} else if req.FullName != "" {
+		conditions["full_name"] = req.FullName
+	}
+
+	if req.Status != "" {
+		conditions["status"] = req.Status
+	}
+	if req.Gender != "" {
+		conditions["gender"] = req.Gender
+	}
+
+	// 调用服务（使用支持数组查询的方法）
+	users, total, err := h.userService.ListUsersWithConditions(c.Request.Context(), page, pageSize, conditions)
 	if err != nil {
 		logger.Error("获取用户列表失败",
 			zap.String("操作", "获取用户列表"),
@@ -627,10 +726,391 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		zap.String("结果", "成功"),
 		zap.String("user_id", userID),
 		zap.Int64("total", total),
-		zap.Int("page", req.Page),
-		zap.Int("page_size", req.PageSize),
+		zap.Int("page", page),
+		zap.Int("page_size", pageSize),
 		zap.Int("count", userCount),
 		zap.String("ip", clientIP))
 
-	response.PageSuccess(c, users, total, req.Page, req.PageSize)
+	response.PageSuccess(c, users, total, page, pageSize)
+}
+
+// CreateUser 创建用户
+// @Summary      创建用户
+// @Description  创建新用户，可以同时分配角色
+// @Tags         用户管理
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request  body      dto.CreateUserRequest  true  "创建用户请求"
+// @Success      200      {object}  response.Response{data=dto.UserResponse}  "创建成功"
+// @Failure      400      {object}  response.Response  "请求参数错误"
+// @Failure      403      {object}  response.Response  "权限不足"
+// @Failure      500      {object}  response.Response  "服务器错误"
+// @Router       /user [post]
+func (h *UserHandler) CreateUser(c *gin.Context) {
+	var req dto.CreateUserRequest
+	clientIP := c.ClientIP()
+
+	// 从上下文获取当前用户ID
+	creatorID := "system"
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			creatorID = uidStr
+		}
+	}
+
+	logger.Info("开始创建用户",
+		zap.String("creator_id", creatorID),
+		zap.String("ip", clientIP))
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("创建用户失败",
+			zap.String("操作", "创建用户"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("creator_id", creatorID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	// 调用服务
+	userResp, err := h.userService.CreateUser(c.Request.Context(), &req, creatorID)
+	if err != nil {
+		if err == service.ErrUserExists {
+			logger.Warn("创建用户失败",
+				zap.String("操作", "创建用户"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "用户已存在"),
+				zap.String("creator_id", creatorID),
+				zap.String("phone", req.Phone),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 400, "用户已存在")
+			return
+		}
+		logger.Error("创建用户失败",
+			zap.String("操作", "创建用户"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "创建用户服务内部错误"),
+			zap.String("creator_id", creatorID),
+			zap.String("phone", req.Phone),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.InternalError(c, "创建用户失败")
+		return
+	}
+
+	logger.Info("创建用户成功",
+		zap.String("操作", "创建用户"),
+		zap.String("结果", "成功"),
+		zap.String("creator_id", creatorID),
+		zap.String("user_id", userResp.UserId),
+		zap.String("phone", req.Phone),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "创建用户成功", userResp)
+}
+
+// UpdateUser 更新用户
+// @Summary      更新用户
+// @Description  更新用户信息，可以同时更新角色
+// @Tags         用户管理
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        userId    path      string                true  "用户ID"
+// @Param        request   body      dto.UpdateUserRequest true  "更新用户请求"
+// @Success      200       {object}  response.Response{data=dto.UserResponse}  "更新成功"
+// @Failure      400       {object}  response.Response  "请求参数错误"
+// @Failure      403       {object}  response.Response  "权限不足"
+// @Failure      404       {object}  response.Response  "用户不存在"
+// @Failure      500       {object}  response.Response  "服务器错误"
+// @Router       /user/{userId} [put]
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	userID := c.Param("userId")
+	var req dto.UpdateUserRequest
+	clientIP := c.ClientIP()
+
+	// 从上下文获取当前用户ID
+	modifierID := "system"
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			modifierID = uidStr
+		}
+	}
+
+	logger.Info("开始更新用户",
+		zap.String("user_id", userID),
+		zap.String("modifier_id", modifierID),
+		zap.String("ip", clientIP))
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("更新用户失败",
+			zap.String("操作", "更新用户"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("user_id", userID),
+			zap.String("modifier_id", modifierID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	// 调用服务
+	userResp, err := h.userService.UpdateUser(c.Request.Context(), userID, &req, modifierID)
+	if err != nil {
+		if err == service.ErrUserNotFound {
+			logger.Warn("更新用户失败",
+				zap.String("操作", "更新用户"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "用户不存在"),
+				zap.String("user_id", userID),
+				zap.String("modifier_id", modifierID),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 404, "用户不存在")
+			return
+		}
+		logger.Error("更新用户失败",
+			zap.String("操作", "更新用户"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "更新用户服务内部错误"),
+			zap.String("user_id", userID),
+			zap.String("modifier_id", modifierID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.InternalError(c, "更新用户失败")
+		return
+	}
+
+	logger.Info("更新用户成功",
+		zap.String("操作", "更新用户"),
+		zap.String("结果", "成功"),
+		zap.String("user_id", userID),
+		zap.String("modifier_id", modifierID),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "更新用户成功", userResp)
+}
+
+// DeleteUser 删除用户
+// @Summary      删除用户
+// @Description  删除用户（软删除），同时移除用户的所有角色
+// @Tags         用户管理
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        userId    path      string  true  "用户ID"
+// @Success      200       {object}  response.Response  "删除成功"
+// @Failure      403       {object}  response.Response  "权限不足"
+// @Failure      404       {object}  response.Response  "用户不存在"
+// @Failure      500       {object}  response.Response  "服务器错误"
+// @Router       /user/{userId} [delete]
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	userID := c.Param("userId")
+	clientIP := c.ClientIP()
+
+	// 从上下文获取当前用户ID
+	deleterID := "system"
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			deleterID = uidStr
+		}
+	}
+
+	logger.Info("开始删除用户",
+		zap.String("user_id", userID),
+		zap.String("deleter_id", deleterID),
+		zap.String("ip", clientIP))
+
+	// 调用服务
+	err := h.userService.DeleteUser(c.Request.Context(), userID)
+	if err != nil {
+		if err == service.ErrUserNotFound {
+			logger.Warn("删除用户失败",
+				zap.String("操作", "删除用户"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "用户不存在"),
+				zap.String("user_id", userID),
+				zap.String("deleter_id", deleterID),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 404, "用户不存在")
+			return
+		}
+		logger.Error("删除用户失败",
+			zap.String("操作", "删除用户"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "删除用户服务内部错误"),
+			zap.String("user_id", userID),
+			zap.String("deleter_id", deleterID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.InternalError(c, "删除用户失败")
+		return
+	}
+
+	logger.Info("删除用户成功",
+		zap.String("操作", "删除用户"),
+		zap.String("结果", "成功"),
+		zap.String("user_id", userID),
+		zap.String("deleter_id", deleterID),
+		zap.String("ip", clientIP))
+
+	response.Success(c, "删除用户成功")
+}
+
+// GetUserDetail 获取用户详情
+// @Summary      获取用户详情
+// @Description  获取用户详细信息，包括角色和权限
+// @Tags         用户管理
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        userId    path      string  true  "用户ID"
+// @Success      200       {object}  response.Response{data=dto.UserDetailResponse}  "获取成功"
+// @Failure      403       {object}  response.Response  "权限不足"
+// @Failure      404       {object}  response.Response  "用户不存在"
+// @Failure      500       {object}  response.Response  "服务器错误"
+// @Router       /user/{userId} [get]
+func (h *UserHandler) GetUserDetail(c *gin.Context) {
+	userID := c.Param("userId")
+	clientIP := c.ClientIP()
+
+	// 从上下文获取用户ID（用于日志）
+	viewerID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			viewerID = uidStr
+		}
+	}
+
+	logger.Info("开始获取用户详情",
+		zap.String("user_id", userID),
+		zap.String("viewer_id", viewerID),
+		zap.String("ip", clientIP))
+
+	// 调用服务
+	userDetail, err := h.userService.GetUserDetail(c.Request.Context(), userID)
+	if err != nil {
+		if err == service.ErrUserNotFound {
+			logger.Warn("获取用户详情失败",
+				zap.String("操作", "获取用户详情"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "用户不存在"),
+				zap.String("user_id", userID),
+				zap.String("viewer_id", viewerID),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 404, "用户不存在")
+			return
+		}
+		logger.Error("获取用户详情失败",
+			zap.String("操作", "获取用户详情"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "获取用户详情服务内部错误"),
+			zap.String("user_id", userID),
+			zap.String("viewer_id", viewerID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.InternalError(c, "获取用户详情失败")
+		return
+	}
+
+	logger.Info("获取用户详情成功",
+		zap.String("操作", "获取用户详情"),
+		zap.String("结果", "成功"),
+		zap.String("user_id", userID),
+		zap.String("viewer_id", viewerID),
+		zap.Int("roles_count", len(userDetail.Roles)),
+		zap.Int("permissions_count", len(userDetail.Permissions)),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "获取用户详情成功", userDetail)
+}
+
+// GrantPermissions 给用户授权（直接分配权限）
+// @Summary      给用户授权
+// @Description  直接为用户分配权限，这些权限独立于角色权限
+// @Tags         用户管理
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        userId    path      string                true  "用户ID"
+// @Param        request   body      dto.GrantPermissionsRequest true  "授权请求"
+// @Success      200       {object}  response.Response  "授权成功"
+// @Failure      400       {object}  response.Response  "请求参数错误"
+// @Failure      403       {object}  response.Response  "权限不足"
+// @Failure      404       {object}  response.Response  "用户不存在"
+// @Failure      500       {object}  response.Response  "服务器错误"
+// @Router       /user/{userId}/permissions [post]
+func (h *UserHandler) GrantPermissions(c *gin.Context) {
+	userID := c.Param("userId")
+	var req dto.GrantPermissionsRequest
+	clientIP := c.ClientIP()
+
+	// 从上下文获取当前用户ID
+	grantorID := "system"
+	if uid, exists := c.Get("user_id"); exists {
+		if uidStr, ok := uid.(string); ok {
+			grantorID = uidStr
+		}
+	}
+
+	logger.Info("开始给用户授权",
+		zap.String("user_id", userID),
+		zap.String("grantor_id", grantorID),
+		zap.String("ip", clientIP))
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("给用户授权失败",
+			zap.String("操作", "给用户授权"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("user_id", userID),
+			zap.String("grantor_id", grantorID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	// 调用服务
+	if err := h.userService.GrantPermissions(c.Request.Context(), userID, req.PermissionIds); err != nil {
+		if err == service.ErrUserNotFound {
+			logger.Warn("给用户授权失败",
+				zap.String("操作", "给用户授权"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "用户不存在"),
+				zap.String("user_id", userID),
+				zap.String("grantor_id", grantorID),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 404, "用户不存在")
+			return
+		}
+		logger.Error("给用户授权失败",
+			zap.String("操作", "给用户授权"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "授权服务内部错误"),
+			zap.String("user_id", userID),
+			zap.String("grantor_id", grantorID),
+			zap.String("ip", clientIP),
+			zap.Error(err))
+		response.InternalError(c, "授权失败")
+		return
+	}
+
+	logger.Info("给用户授权成功",
+		zap.String("操作", "给用户授权"),
+		zap.String("结果", "成功"),
+		zap.String("user_id", userID),
+		zap.String("grantor_id", grantorID),
+		zap.Int("permissions_count", len(req.PermissionIds)),
+		zap.String("ip", clientIP))
+
+	response.SuccessWithMessage(c, "授权成功", nil)
 }

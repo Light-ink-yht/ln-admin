@@ -167,12 +167,12 @@ func (b *Bootstrap) InitRepositories() *Repositories {
 // InitServices 初始化服务
 func (b *Bootstrap) InitServices(repos *Repositories) *Services {
 	smsAppService := service.NewSMSAppService(repos.SystemConfigRepository, repos.SMSTemplateRepository)
-	userService := service.NewUserAppService(repos.UserRepository, smsAppService)
 	permissionService := service.NewPermissionService(
 		repos.RoleRepository,
 		repos.PermissionRepository,
 		repos.UserRoleRepository,
 	)
+	userService := service.NewUserAppService(repos.UserRepository, smsAppService, permissionService)
 
 	return &Services{
 		UserService:       userService,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
@@ -90,11 +91,42 @@ func (r *permissionRepositoryImpl) List(ctx context.Context, page, pageSize int,
 	for key, value := range conditions {
 		switch key {
 		case "permission_key":
-			query = query.Where("AAF002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			// 支持数组格式（多个搜索词，使用 OR 查询）
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAF002 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAF002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "permission_name":
-			query = query.Where("AAF003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAF003 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAF003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "resource_path":
-			query = query.Where("AAF004 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAF004 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAF004 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "method":
 			query = query.Where("AAF005 = ?", value)
 		case "status":

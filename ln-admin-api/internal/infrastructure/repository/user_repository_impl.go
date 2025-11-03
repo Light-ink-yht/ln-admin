@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
@@ -123,17 +124,58 @@ func (r *userRepositoryImpl) List(ctx context.Context, page, pageSize int, condi
 	for key, value := range conditions {
 		switch key {
 		case "phone":
-			query = query.Where("AAA003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			// 支持数组格式（多个搜索词，使用 OR 查询）
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAA003 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAA003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "email":
-			query = query.Where("AAA002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAA002 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAA002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "status":
 			query = query.Where("AAA010 = ?", value)
 		case "gender":
 			query = query.Where("AAA008 = ?", value)
 		case "nickname":
-			query = query.Where("AAA005 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAA005 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAA005 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "full_name":
-			query = query.Where("AAA006 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAA006 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAA006 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		}
 	}
 

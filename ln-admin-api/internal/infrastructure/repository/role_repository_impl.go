@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
@@ -90,9 +91,30 @@ func (r *roleRepositoryImpl) List(ctx context.Context, page, pageSize int, condi
 	for key, value := range conditions {
 		switch key {
 		case "role_key":
-			query = query.Where("AAE002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			// 支持数组格式（多个搜索词，使用 OR 查询）
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAE002 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAE002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "role_name":
-			query = query.Where("AAE003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			if values, ok := value.([]interface{}); ok && len(values) > 0 {
+				var orConditions []string
+				var args []interface{}
+				for _, v := range values {
+					orConditions = append(orConditions, "AAE003 LIKE ?")
+					args = append(args, "%"+fmt.Sprintf("%v", v)+"%")
+				}
+				query = query.Where("("+strings.Join(orConditions, " OR ")+")", args...)
+			} else {
+				query = query.Where("AAE003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			}
 		case "status":
 			query = query.Where("AAE005 = ?", value)
 		}

@@ -96,6 +96,59 @@ type UserListRequest struct {
 	FullName string `form:"full_name"`
 }
 
+// CreateUserRequest 创建用户请求
+type CreateUserRequest struct {
+	Phone    string   `json:"phone" binding:"required,min=11,max=11"`
+	Email    *string  `json:"email,omitempty"`
+	Password string   `json:"password" binding:"required,min=6,max=20"`
+	Nickname string   `json:"nickname" binding:"required"`
+	FullName string   `json:"fullName" binding:"required"`
+	Gender   string   `json:"gender" binding:"omitempty,oneof=1 2 3"`
+	Status   string   `json:"status" binding:"omitempty,oneof=1 2"`
+	Avatar   string   `json:"avatar,omitempty"`
+	Birthday *string  `json:"birthday,omitempty"`
+	Remarks  string   `json:"remarks,omitempty"`
+	RoleIds  []string `json:"roleIds,omitempty"`
+}
+
+// UpdateUserRequest 更新用户请求
+type UpdateUserRequest struct {
+	Email    *string  `json:"email,omitempty"`
+	Nickname *string  `json:"nickname,omitempty"`
+	FullName *string  `json:"fullName,omitempty"`
+	Gender   *string  `json:"gender,omitempty" binding:"omitempty,oneof=1 2 3"`
+	Status   *string  `json:"status,omitempty" binding:"omitempty,oneof=1 2"`
+	Avatar   *string  `json:"avatar,omitempty"`
+	Birthday *string  `json:"birthday,omitempty"`
+	Remarks  *string  `json:"remarks,omitempty"`
+	RoleIds  []string `json:"roleIds,omitempty"`
+}
+
+// UserDetailResponse 用户详情响应（包含角色和权限）
+type UserDetailResponse struct {
+	UserResponse
+	Roles       []RoleInfo       `json:"roles,omitempty"`
+	Permissions []PermissionInfo `json:"permissions,omitempty"`
+}
+
+// RoleInfo 角色信息
+type RoleInfo struct {
+	RoleID   string `json:"roleId"`
+	RoleKey  string `json:"roleKey"`
+	RoleName string `json:"roleName"`
+	Status   string `json:"status,omitempty"`
+}
+
+// PermissionInfo 权限信息
+type PermissionInfo struct {
+	PermissionID   string `json:"permissionId"`
+	PermissionKey  string `json:"permissionKey"`
+	PermissionName string `json:"permissionName"`
+	ResourcePath   string `json:"resourcePath"`
+	Method         string `json:"method"`
+	Description    string `json:"description,omitempty"`
+}
+
 // FormatTime 格式化时间为字符串
 func FormatTime(t time.Time) string {
 	return t.Format("2006-01-02 15:04:05")
@@ -108,4 +161,9 @@ func FormatDate(t *time.Time) *string {
 	}
 	formatted := t.Format("2006-01-02")
 	return &formatted
+}
+
+// GrantPermissionsRequest 授权请求
+type GrantPermissionsRequest struct {
+	PermissionIds []string `json:"permissionIds" binding:"required"`
 }

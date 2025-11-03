@@ -199,3 +199,161 @@ func (s *PermissionService) CreatePermission(ctx context.Context, permission *en
 func (s *PermissionService) GetUserRoles(ctx context.Context, userID string) ([]*entity.Role, error) {
 	return s.roleRepo.FindRolesByUserID(ctx, userID)
 }
+
+// GetAllRoles 获取所有角色（不分页）
+func (s *PermissionService) GetAllRoles(ctx context.Context) ([]*entity.Role, int64, error) {
+	return s.roleRepo.List(ctx, 1, 10000, map[string]interface{}{})
+}
+
+// GetRoleList 获取角色列表（分页）
+func (s *PermissionService) GetRoleList(ctx context.Context, page, pageSize int, conditions map[string]interface{}) ([]*entity.Role, int64, error) {
+	return s.roleRepo.List(ctx, page, pageSize, conditions)
+}
+
+// GetRoleByID 根据ID获取角色
+func (s *PermissionService) GetRoleByID(ctx context.Context, roleID string) (*entity.Role, error) {
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+	if role == nil {
+		return nil, ErrRoleNotFound
+	}
+	return role, nil
+}
+
+// UpdateRole 更新角色
+func (s *PermissionService) UpdateRole(ctx context.Context, role *entity.Role) error {
+	// 检查角色是否存在
+	existing, err := s.roleRepo.FindByID(ctx, role.RoleID)
+	if err != nil {
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+	if existing == nil {
+		return ErrRoleNotFound
+	}
+
+	// 更新角色
+	if err := s.roleRepo.Update(ctx, role); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteRole 删除角色
+func (s *PermissionService) DeleteRole(ctx context.Context, roleID string) error {
+	// 检查角色是否存在
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+	if role == nil {
+		return ErrRoleNotFound
+	}
+
+	// 删除角色
+	if err := s.roleRepo.Delete(ctx, roleID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetPermissionList 获取权限列表（分页）
+func (s *PermissionService) GetPermissionList(ctx context.Context, page, pageSize int, conditions map[string]interface{}) ([]*entity.Permission, int64, error) {
+	return s.permissionRepo.List(ctx, page, pageSize, conditions)
+}
+
+// GetPermissionByID 根据ID获取权限
+func (s *PermissionService) GetPermissionByID(ctx context.Context, permissionID string) (*entity.Permission, error) {
+	permission, err := s.permissionRepo.FindByID(ctx, permissionID)
+	if err != nil {
+		return nil, fmt.Errorf("查询权限失败: %w", err)
+	}
+	if permission == nil {
+		return nil, ErrPermissionNotFound
+	}
+	return permission, nil
+}
+
+// GetPermissionByResourceAndMethod 根据资源路径和方法获取权限
+func (s *PermissionService) GetPermissionByResourceAndMethod(ctx context.Context, resourcePath, method string) (*entity.Permission, error) {
+	permission, err := s.permissionRepo.FindByResource(ctx, resourcePath, method)
+	if err != nil {
+		return nil, fmt.Errorf("查询权限失败: %w", err)
+	}
+	// 找不到权限时返回nil，不返回错误
+	return permission, nil
+}
+
+// UpdatePermission 更新权限
+func (s *PermissionService) UpdatePermission(ctx context.Context, permission *entity.Permission) error {
+	// 检查权限是否存在
+	existing, err := s.permissionRepo.FindByID(ctx, permission.PermissionID)
+	if err != nil {
+		return fmt.Errorf("查询权限失败: %w", err)
+	}
+	if existing == nil {
+		return ErrPermissionNotFound
+	}
+
+	// 更新权限
+	if err := s.permissionRepo.Update(ctx, permission); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeletePermission 删除权限
+func (s *PermissionService) DeletePermission(ctx context.Context, permissionID string) error {
+	// 检查权限是否存在
+	permission, err := s.permissionRepo.FindByID(ctx, permissionID)
+	if err != nil {
+		return fmt.Errorf("查询权限失败: %w", err)
+	}
+	if permission == nil {
+		return ErrPermissionNotFound
+	}
+
+	// 删除权限
+	if err := s.permissionRepo.Delete(ctx, permissionID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AssignPermissionsToUser 直接为用户分配权限（不通过角色）
+func (s *PermissionService) AssignPermissionsToUser(ctx context.Context, userID string, permissionIDs []string) error {
+	// 简化方案：先获取所有权限，移除所有用户直接权限，然后添加新的权限
+	// 使用List方法获取所有权限（设置大pageSize）
+	allPermissions, _, err := s.permissionRepo.List(ctx, 1, 10000, make(map[string]interface{}))
+	if err != nil {
+		return fmt.Errorf("查询所有权限失败: %w", err)
+	}
+
+	// 移除用户的所有直接权限（遍历所有权限，尝试移除）
+	// 这样可以确保清理所有旧的直接权限
+	for _, permission := range allPermissions {
+		_ = s.casbinSvc.RemovePolicyForUser(ctx, userID, permission.ResourcePath, permission.Method)
+	}
+
+	// 添加新的权限
+	for _, permissionID := range permissionIDs {
+		permission, err := s.permissionRepo.FindByID(ctx, permissionID)
+		if err != nil {
+			return fmt.Errorf("查询权限失败: %w", err)
+		}
+		if permission == nil {
+			return fmt.Errorf("权限不存在: %s", permissionID)
+		}
+		// 添加用户直接权限策略：p, user_id, resource_path, method
+		if err := s.casbinSvc.AddPolicyForUser(ctx, userID, permission.ResourcePath, permission.Method); err != nil {
+			return fmt.Errorf("添加用户权限失败: %w", err)
+		}
+	}
+
+	return nil
+}

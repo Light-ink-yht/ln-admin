@@ -217,8 +217,13 @@ const router = createRouter({
         if (savedPosition) {
             return savedPosition
         }
-        // 否则滚动到顶部
-        return { top: 0 }
+        // 对于相同路由（只是参数变化），保持当前位置
+        if (to.path === from.path) {
+            return false
+        }
+        // 对于不同路由，滚动到内容容器顶部（而不是window顶部）
+        // 返回 false 可以禁用自动滚动，因为我们的布局使用了固定高度的容器
+        return false
     },
 })
 

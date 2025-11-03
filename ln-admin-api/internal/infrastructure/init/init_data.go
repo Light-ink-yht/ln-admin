@@ -7,6 +7,7 @@ import (
 	"github.com/Light-ink-yht/ln-admin/internal/application/service"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
+	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/logger"
 	"github.com/Light-ink-yht/ln-admin/pkg/config"
 	"github.com/Light-ink-yht/ln-admin/pkg/service/casbin_service"
@@ -204,43 +205,51 @@ func initDefaultUser(
 		return fmt.Errorf("查询用户失败: %w", err)
 	}
 
-	// 如果用户已存在，直接返回（避免重复创建）
+	var userID string
+
+	// 如果用户已存在，确保分配角色和权限
 	if existing != nil {
-		logger.Info("默认用户已存在", zap.String("phone", phone))
-		return nil
-	}
-
-	// 加密密码
-	hashedPassword, err := utils.HashPassword(defaultPassword, config.Cfg.Password.Cost)
-	if err != nil {
-		return fmt.Errorf("加密密码失败: %w", err)
-	}
-
-	// 生成用户ID
-	userID := uuid.New().String()
-
-	// 创建默认用户
-	user := &entity.User{
-		UserID:     userID,
-		Phone:      &phone,
-		Password:   hashedPassword,
-		Nickname:   "超级管理员",
-		FullName:   "系统管理员",
-		Status:     "1", // 启用
-		Gender:     "3", // 未知
-		CreatorID:  "system",
-		ModifierID: "system",
-	}
-
-	if err := userRepo.Create(ctx, user); err != nil {
-		if isDuplicateError(err) {
-			logger.Info("默认用户已存在", zap.String("phone", phone))
-			return nil
+		userID = existing.UserID
+		logger.Info("默认用户已存在", zap.String("phone", phone), zap.String("user_id", userID))
+	} else {
+		// 加密密码
+		hashedPassword, err := utils.HashPassword(defaultPassword, config.Cfg.Password.Cost)
+		if err != nil {
+			return fmt.Errorf("加密密码失败: %w", err)
 		}
-		return fmt.Errorf("创建默认用户失败: %w", err)
+
+		// 生成用户ID
+		userID = uuid.New().String()
+
+		// 创建默认用户
+		user := &entity.User{
+			UserID:     userID,
+			Phone:      &phone,
+			Password:   hashedPassword,
+			Nickname:   "超级管理员",
+			FullName:   "系统管理员",
+			Status:     "1", // 启用
+			Gender:     "3", // 未知
+			CreatorID:  "system",
+			ModifierID: "system",
+		}
+
+		if err := userRepo.Create(ctx, user); err != nil {
+			if isDuplicateError(err) {
+				logger.Info("默认用户已存在", zap.String("phone", phone))
+				// 如果创建时出现重复错误，重新查询用户
+				existing, err = userRepo.FindByPhone(ctx, phone)
+				if err != nil || existing == nil {
+					return fmt.Errorf("创建默认用户失败: %w", err)
+				}
+				userID = existing.UserID
+			} else {
+				return fmt.Errorf("创建默认用户失败: %w", err)
+			}
+		}
 	}
 
-	// 为默认用户分配超级管理员角色
+	// 为默认用户分配超级管理员角色（无论用户是新创建还是已存在）
 	superAdminRole, err := roleRepo.FindByKey(ctx, "super_admin")
 	if err != nil {
 		return fmt.Errorf("查询超级管理员角色失败: %w", err)
@@ -250,17 +259,55 @@ func initDefaultUser(
 	}
 
 	// 使用权限服务分配角色（会自动更新Casbin策略）
+	// 注意：即使角色已分配，也会确保Casbin策略正确
 	if err := permissionService.AssignRoleToUser(ctx, userID, superAdminRole.RoleID); err != nil {
-		// 如果是重复键错误，忽略
+		// 如果是重复键错误，说明角色已经分配，继续执行以确保权限正确
 		if !isDuplicateError(err) {
 			logger.Warn("分配角色失败", zap.Error(err))
+		} else {
+			logger.Info("角色已分配，确保Casbin策略正确", zap.String("user_id", userID))
 		}
 	}
 
-	logger.Info("创建默认用户成功",
+	// 确保Casbin策略中存在用户角色关系（即使已存在，重新添加也不会出错）
+	casbinSvc := casbin_service.NewCasbinService()
+
+	// 先检查用户是否已有该角色
+	enforcer := casbin.GetEnforcer()
+	if enforcer != nil {
+		roles, err := enforcer.GetRolesForUser(userID)
+		hasRole := false
+		if err == nil {
+			for _, role := range roles {
+				if role == superAdminRole.RoleKey {
+					hasRole = true
+					break
+				}
+			}
+		}
+
+		if !hasRole {
+			// 用户还没有该角色，添加角色关系
+			if err := casbinSvc.AddRoleForUser(ctx, userID, superAdminRole.RoleKey); err != nil {
+				logger.Warn("添加Casbin用户角色策略失败", zap.Error(err))
+			} else {
+				logger.Info("已添加Casbin用户角色策略", zap.String("user_id", userID), zap.String("role", superAdminRole.RoleKey))
+			}
+		} else {
+			logger.Info("用户已拥有角色", zap.String("user_id", userID), zap.String("role", superAdminRole.RoleKey))
+		}
+
+		// 重新加载策略确保生效
+		if err := enforcer.LoadPolicy(); err != nil {
+			logger.Warn("重新加载Casbin策略失败", zap.Error(err))
+		}
+	}
+
+	logger.Info("默认用户初始化完成",
 		zap.String("phone", phone),
 		zap.String("user_id", userID),
-		zap.String("role", "超级管理员"))
+		zap.String("role", "超级管理员"),
+		zap.Bool("is_existing", existing != nil))
 
 	return nil
 }

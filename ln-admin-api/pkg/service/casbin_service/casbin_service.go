@@ -71,6 +71,34 @@ func (s *CasbinService) RemovePolicy(ctx context.Context, roleKey, resourcePath,
 	return nil
 }
 
+// AddPolicyForUser 直接为用户添加权限策略（Casbin策略：p, user_id, resource_path, method）
+func (s *CasbinService) AddPolicyForUser(ctx context.Context, userID, resourcePath, method string) error {
+	enforcer := casbin.GetEnforcer()
+	if enforcer == nil {
+		return fmt.Errorf("Casbin enforcer未初始化")
+	}
+
+	_, err := enforcer.AddPolicy(userID, resourcePath, method)
+	if err != nil {
+		return fmt.Errorf("添加用户权限策略失败: %w", err)
+	}
+	return nil
+}
+
+// RemovePolicyForUser 移除用户直接权限策略
+func (s *CasbinService) RemovePolicyForUser(ctx context.Context, userID, resourcePath, method string) error {
+	enforcer := casbin.GetEnforcer()
+	if enforcer == nil {
+		return fmt.Errorf("Casbin enforcer未初始化")
+	}
+
+	_, err := enforcer.RemovePolicy(userID, resourcePath, method)
+	if err != nil {
+		return fmt.Errorf("移除用户权限策略失败: %w", err)
+	}
+	return nil
+}
+
 // Enforce 检查权限
 func (s *CasbinService) Enforce(userID, resourcePath, method string) (bool, error) {
 	enforcer := casbin.GetEnforcer()
