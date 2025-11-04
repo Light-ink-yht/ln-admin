@@ -1,7 +1,33 @@
 <template>
     <div class="user-profile-container">
         <a-card title="个人资料" :bordered="false">
-            <a-descriptions :column="2" bordered>
+            <div class="profile-header">
+                <div class="avatar-section">
+                    <a-avatar :size="120" :src="userInfo?.avatar">
+                        <template v-if="!userInfo?.avatar">
+                            <UserOutlined />
+                        </template>
+                    </a-avatar>
+                    <div class="avatar-upload">
+                        <a-upload
+                            :show-upload-list="false"
+                            :before-upload="handleAvatarUpload"
+                            accept="image/*"
+                        >
+                            <a-button type="link">
+                                <template #icon><UploadOutlined /></template>
+                                更换头像
+                            </a-button>
+                        </a-upload>
+                    </div>
+                </div>
+                <div class="profile-info">
+                    <h2 class="profile-name">{{ userInfo?.fullName || userInfo?.nickname || '未设置' }}</h2>
+                    <p class="profile-role">{{ userInfo?.email || '-' }}</p>
+                </div>
+            </div>
+
+            <a-descriptions :column="2" bordered style="margin-top: 24px;">
                 <a-descriptions-item label="用户ID">
                     {{ userInfo?.userId || '-' }}
                 </a-descriptions-item>
@@ -82,7 +108,9 @@
                     />
                 </a-form-item>
                 <a-form-item label="头像" name="avatar">
-                    <a-input v-model:value="editProfileForm.avatar" placeholder="请输入头像URL" />
+                    <div class="avatar-edit-wrapper">
+                        <FileSelect v-model="editProfileForm.avatar" placeholder="请选择头像文件" :accept-types="['image']" />
+                    </div>
                 </a-form-item>
             </a-form>
         </a-modal>
@@ -121,9 +149,12 @@
 import { computed, onMounted, ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { UserOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useUserStore } from '@/stores/modules/user'
 import { userApi, type UpdateUserRequest } from '@/api/user'
+import { fileApi } from '@/api/file'
+import FileSelect from '@/components/FileSelect.vue'
 
 const userStore = useUserStore()
 
@@ -293,6 +324,35 @@ const handleCancelChangePassword = () => {
     changePasswordFormRef.value?.resetFields()
 }
 
+// 上传头像
+const handleAvatarUpload = async (file: File) => {
+    try {
+        const response = await fileApi.uploadFile(file)
+        if (response.code === 200 || response.code === 0) {
+            const avatarUrl = response.data?.file_url || response.data?.file_path || ''
+            if (avatarUrl) {
+                // 更新头像
+                const updateData: UpdateUserRequest = {
+                    avatar: avatarUrl,
+                }
+                const updateResponse = await userApi.updateUser(userInfo.value!.userId, updateData)
+                if (updateResponse.code === 200 || updateResponse.code === 0) {
+                    message.success('头像上传成功')
+                    await userStore.fetchUserInfo()
+                } else {
+                    message.error(updateResponse.msg || '更新头像失败')
+                }
+            }
+        } else {
+            message.error(response.msg || '上传失败')
+        }
+    } catch (error: any) {
+        console.error('上传头像失败:', error)
+        message.error(error.message || '上传失败')
+    }
+    return false // 阻止默认上传行为
+}
+
 onMounted(async () => {
     // 如果store中没有用户信息，从服务器获取
     if (!userInfo.value) {
@@ -304,6 +364,58 @@ onMounted(async () => {
 <style scoped>
 .user-profile-container {
     padding: 0;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.avatar-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar-section :deep(.ant-avatar) {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.avatar-upload :deep(.ant-btn) {
+    color: #fff;
+}
+
+.avatar-upload :deep(.ant-btn:hover) {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.profile-info {
+    flex: 1;
+    color: #fff;
+}
+
+.profile-name {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.profile-role {
+    margin: 0;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.avatar-edit-wrapper {
+    width: 100%;
 }
 </style>
 

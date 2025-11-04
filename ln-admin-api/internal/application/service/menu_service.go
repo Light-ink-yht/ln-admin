@@ -114,6 +114,25 @@ func (s *MenuService) getAllMenus() []dto.MenuItem {
 			},
 		},
 		{
+			Key:   "file-management",
+			Title: "文件管理",
+			Icon:  "FileOutlined",
+			Children: []dto.MenuItem{
+				{
+					Key:        "file-list",
+					Title:      "文件列表",
+					Path:       "/file/list",
+					Permission: "/file/list:GET",
+				},
+				{
+					Key:        "file-storage-config",
+					Title:      "存储配置",
+					Path:       "/file/storage/config",
+					Permission: "/file/storage/config:GET",
+				},
+			},
+		},
+		{
 			Key:   "system-ops",
 			Title: "系统运维",
 			Icon:  "ToolOutlined",

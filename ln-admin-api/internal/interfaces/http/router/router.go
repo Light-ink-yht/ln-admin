@@ -1,8 +1,10 @@
 package router
 
 import (
-	"github.com/Light-ink-yht/ln-admin/internal/application/service"
+	appService "github.com/Light-ink-yht/ln-admin/internal/application/service"
+	domainService "github.com/Light-ink-yht/ln-admin/internal/domain/service"
 	infraRepo "github.com/Light-ink-yht/ln-admin/internal/infrastructure/repository"
+	infraStorage "github.com/Light-ink-yht/ln-admin/internal/infrastructure/storage"
 	"github.com/Light-ink-yht/ln-admin/internal/interfaces/http/handler"
 	"github.com/Light-ink-yht/ln-admin/internal/interfaces/http/middleware"
 
@@ -16,10 +18,10 @@ import (
 )
 
 // SetupRouter 设置路由
-func SetupRouter(userAppService *service.UserAppService, smsAppService *service.SMSAppService, permissionService *service.PermissionService) *gin.Engine {
+func SetupRouter(userAppService *appService.UserAppService, smsAppService *appService.SMSAppService, permissionService *appService.PermissionService) *gin.Engine {
 	// 创建菜单仓库和服务
 	menuRepo := infraRepo.NewMenuRepository()
-	menuService := service.NewMenuService(permissionService, menuRepo)
+	menuService := appService.NewMenuService(permissionService, menuRepo)
 	menuHandler := handler.NewMenuHandler(menuService)
 	// 创建用户仓库（用于handler）
 	userRepo := infraRepo.NewUserRepository()
@@ -84,7 +86,7 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 
 		// 工作台相关路由（需要认证）
 		workbenchRepo := infraRepo.NewWorkbenchRepository()
-		workbenchService := service.NewWorkbenchService(workbenchRepo, permissionService)
+		workbenchService := appService.NewWorkbenchService(workbenchRepo, permissionService)
 		workbenchHandler := handler.NewWorkbenchHandler(workbenchService)
 		workbench := api.Group("/workbench")
 		workbench.Use(middleware.Auth()) // 只需JWT认证
@@ -99,9 +101,9 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 
 		// 短信管理相关路由（需要认证和权限验证）
 		templateRepo := infraRepo.NewSMSTemplateRepository()
-		templateService := service.NewSMSTemplateService(templateRepo)
+		templateService := appService.NewSMSTemplateService(templateRepo)
 		codeRepo := infraRepo.NewSMSCodeRepository()
-		codeService := service.NewSMSCodeService(codeRepo)
+		codeService := appService.NewSMSCodeService(codeRepo)
 		smsHandler := handler.NewSMSHandler(templateService, codeService)
 		sms := api.Group("/sms")
 		sms.Use(middleware.Auth())             // JWT认证
@@ -117,10 +119,10 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 
 		// 系统配置和日志相关路由（需要认证和权限验证）
 		configRepo := infraRepo.NewSystemConfigRepository()
-		configService := service.NewSystemConfigService(configRepo)
+		configService := appService.NewSystemConfigService(configRepo)
 		configHandler := handler.NewSystemConfigHandler(configService)
 		logRepo := infraRepo.NewSystemLogRepository()
-		logService := service.NewSystemLogService(logRepo)
+		logService := appService.NewSystemLogService(logRepo)
 		logHandler := handler.NewSystemLogHandler(logService)
 		system := api.Group("/system")
 		system.Use(middleware.Auth())             // JWT认证
@@ -135,13 +137,67 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 		}
 
 		// 系统运维相关路由（需要认证和权限验证）
-		monitorService := service.NewSystemMonitorService()
+		monitorService := appService.NewSystemMonitorService()
 		monitorHandler := handler.NewSystemMonitorHandler(monitorService)
 		ops := api.Group("/ops")
 		ops.Use(middleware.Auth())             // JWT认证
 		ops.Use(middleware.CasbinMiddleware()) // Casbin权限验证
 		{
 			ops.GET("/monitor", monitorHandler.GetSystemMonitor) // 获取系统监控信息
+		}
+
+		// 文件管理相关路由（需要认证和权限验证）
+		fileRepo := infraRepo.NewFileRepository()
+		s3ConfigRepo := infraRepo.NewS3ConfigRepository()
+		// 初始化本地文件存储
+		localStorage := infraStorage.NewLocalStorage("./uploads", "/api/file/static")
+		// 初始化S3存储（如果需要S3，需要先安装AWS SDK并配置）
+		var s3Storage domainService.FileStorage = nil
+		// 如果启用S3存储，可以在这里初始化：
+		// s3Config, err := s3ConfigRepo.GetActiveConfig(context.Background())
+		// if err == nil && s3Config != nil && s3Config.Status == "1" {
+		// 	s3Storage, _ = infraStorage.NewS3Storage(infraStorage.S3Config{
+		// 		Bucket:    s3Config.Bucket,
+		// 		Region:    s3Config.Region,
+		// 		Endpoint:  s3Config.Endpoint,
+		// 		AccessKey: s3Config.AccessKeyID,
+		// 		SecretKey: s3Config.SecretKey,
+		// 		BaseURL:   s3Config.BaseURL,
+		// 	})
+		// }
+		// 默认允许的文件扩展名（可以通过配置修改）
+		allowedExts := []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg",
+			"doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf", "txt", "md", "csv",
+			"mp4", "avi", "mov", "wmv", "flv", "mkv",
+			"mp3", "wav", "flac", "aac",
+			"zip", "rar", "7z", "tar", "gz"}
+		// 最大文件大小：100MB
+		maxFileSize := int64(100 * 1024 * 1024)
+		fileService := appService.NewFileService(fileRepo, s3ConfigRepo, localStorage, s3Storage, maxFileSize, allowedExts)
+		fileHandler := handler.NewFileHandler(fileService)
+		s3ConfigService := appService.NewS3ConfigService(s3ConfigRepo)
+		s3ConfigHandler := handler.NewS3ConfigHandler(s3ConfigService)
+		file := api.Group("/file")
+		file.Use(middleware.Auth())             // JWT认证
+		file.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			file.POST("/upload", fileHandler.UploadFile)             // 上传文件
+			file.GET("/list", fileHandler.ListFiles)                 // 获取文件列表
+			file.GET("/:file_id", fileHandler.GetFile)               // 获取文件信息
+			file.GET("/:file_id/download", fileHandler.DownloadFile) // 下载文件
+			file.DELETE("/:file_id", fileHandler.DeleteFile)         // 删除文件
+			// 存储配置管理
+			file.GET("/storage/config", s3ConfigHandler.GetS3Config)                  // 获取存储配置
+			file.POST("/storage/config", s3ConfigHandler.CreateOrUpdateS3Config)      // 创建或更新存储配置
+			file.DELETE("/storage/config/:config_id", s3ConfigHandler.DeleteS3Config) // 删除存储配置
+		}
+
+		// 文件静态资源访问（需要认证）
+		static := api.Group("/file/static")
+		static.Use(middleware.Auth()) // JWT认证
+		{
+			// 静态文件服务由nginx或其他web服务器处理，这里只做路由占位
+			// 实际文件访问应该通过GetFile接口获取URL
 		}
 
 		// 需要认证和权限验证的路由（管理功能）

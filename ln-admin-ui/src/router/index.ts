@@ -34,6 +34,10 @@ const SMSCodeList = () => import('@/views/pages/sms/SMSCodeList.vue')
 // 菜单管理模块
 const MenuList = () => import('@/views/pages/menu/MenuList.vue')
 
+// 文件管理模块
+const FileList = () => import('@/views/pages/file/FileList.vue')
+const FileStorageConfig = () => import('@/views/pages/file/FileStorageConfig.vue')
+
 // 系统运维模块
 const SystemMonitor = () => import('@/views/pages/ops/SystemMonitor.vue')
 const APIDoc = () => import('@/views/pages/ops/APIDoc.vue')
@@ -171,6 +175,27 @@ const routes: RouteRecordRaw[] = [
                 component: MenuList,
                 meta: {
                     title: '菜单列表',
+                    category: 'system',
+                    requiresAuth: true,
+                },
+            },
+            // ========== 文件管理模块 ==========
+            {
+                path: 'file/list',
+                name: 'FileList',
+                component: FileList,
+                meta: {
+                    title: '文件列表',
+                    category: 'system',
+                    requiresAuth: true,
+                },
+            },
+            {
+                path: 'file/storage/config',
+                name: 'FileStorageConfig',
+                component: FileStorageConfig,
+                meta: {
+                    title: '存储配置',
                     category: 'system',
                     requiresAuth: true,
                 },
