@@ -101,6 +101,19 @@ func (s *MenuService) getAllMenus() []dto.MenuItem {
 			},
 		},
 		{
+			Key:   "menu-management",
+			Title: "菜单管理",
+			Icon:  "MenuOutlined",
+			Children: []dto.MenuItem{
+				{
+					Key:        "menu-list",
+					Title:      "菜单列表",
+					Path:       "/menu/list",
+					Permission: "/menu/list:GET",
+				},
+			},
+		},
+		{
 			Key:   "system-settings",
 			Title: "系统设置",
 			Icon:  "SettingOutlined",
