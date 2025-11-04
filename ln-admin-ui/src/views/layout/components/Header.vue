@@ -11,7 +11,10 @@
                     <MenuOutlined />
                 </template>
             </a-button>
-            <div class="logo" :style="logoStyle">LN Admin</div>
+            <div class="logo" :style="logoStyle">
+                <img v-if="siteLogo" :src="siteLogo" alt="Logo" class="logo-img" />
+                <span>{{ siteName }}</span>
+            </div>
         </div>
         <!-- 顶部中间区域：面包屑或自定义菜单 -->
         <div class="header-center">
@@ -32,6 +35,7 @@
 import { computed } from 'vue'
 import { MenuOutlined } from '@ant-design/icons-vue'
 import { useThemeStore } from '@/stores/modules/theme'
+import { useSystemConfigStore } from '@/stores/modules/systemConfig'
 import { useRoute } from 'vue-router'
 import ThemeSwitch from './ThemeSwitch.vue'
 import UserDropdown from './UserDropdown.vue'
@@ -50,9 +54,12 @@ interface Props {
 const props = defineProps<Props>()
 
 const themeStore = useThemeStore()
+const systemConfigStore = useSystemConfigStore()
 const route = useRoute()
 const isDark = computed(() => themeStore.isDark)
 const colorPrimary = computed(() => themeStore.colorPrimary)
+const siteName = computed(() => systemConfigStore.siteName)
+const siteLogo = computed(() => systemConfigStore.siteLogo)
 
 const headerStyle = computed(() => {
     if (isDark.value) {
@@ -112,8 +119,15 @@ const logoStyle = computed(() => {
     white-space: nowrap;
     display: flex;
     align-items: center;
+    gap: 8px;
     height: 64px;
     transition: color 0.3s;
+}
+
+.logo-img {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
 }
 
 .header-center {

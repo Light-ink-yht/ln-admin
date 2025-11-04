@@ -2,9 +2,9 @@
     <a-layout-footer class="footer" :style="footerStyle">
         <div class="footer-content">
             <div class="footer-info">
-                <span>© 2024 LN Admin</span>
-                <a-divider type="vertical" />
-                <span>基于 Vue 3 + Ant Design Vue</span>
+                <span>{{ siteCopyright }}</span>
+                <a-divider v-if="siteBeian" type="vertical" />
+                <span v-if="siteBeian">{{ siteBeian }}</span>
             </div>
             <div class="footer-links">
                 <a href="#" @click.prevent>帮助文档</a>
@@ -20,9 +20,13 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { useThemeStore } from '@/stores/modules/theme'
+import { useSystemConfigStore } from '@/stores/modules/systemConfig'
 
 const themeStore = useThemeStore()
+const systemConfigStore = useSystemConfigStore()
 const isDark = computed(() => themeStore.isDark)
+const siteCopyright = computed(() => systemConfigStore.siteCopyright)
+const siteBeian = computed(() => systemConfigStore.siteBeian)
 
 const footerStyle = computed(() => {
     if (isDark.value) {
