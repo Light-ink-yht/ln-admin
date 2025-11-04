@@ -27,6 +27,75 @@ export interface UserMenuItem {
 }
 
 /**
+ * 菜单响应数据
+ */
+export interface Menu {
+    id: number
+    created_at: string
+    updated_at: string
+    menu_id: string
+    menu_key: string
+    title: string
+    path: string
+    icon: string
+    parent_id: string
+    sort: number
+    permission: string
+    menu_type: string
+    status: string
+    description: string
+    creator_id: string
+    modifier_id: string
+    children?: Menu[]
+}
+
+/**
+ * 菜单列表请求参数
+ */
+export interface MenuListParams {
+    page?: number
+    pageSize?: number
+    menu_type?: string
+}
+
+/**
+ * 创建菜单请求
+ */
+export interface CreateMenuRequest {
+    menu_key: string
+    title: string
+    path?: string
+    icon?: string
+    parent_id?: string
+    sort?: number
+    permission?: string
+    menu_type: string
+    description?: string
+}
+
+/**
+ * 更新菜单请求
+ */
+export interface UpdateMenuRequest {
+    title: string
+    path?: string
+    icon?: string
+    parent_id?: string
+    sort?: number
+    permission?: string
+    status?: string
+    description?: string
+}
+
+/**
+ * 菜单列表响应
+ */
+export interface MenuListResponse {
+    list: Menu[]
+    total: number
+}
+
+/**
  * 菜单 API
  */
 export const menuApi = {
@@ -42,6 +111,48 @@ export const menuApi = {
      */
     getUserMenus(): Promise<ResponseData<UserMenuItem[]>> {
         return request.get<UserMenuItem[]>('/menu/user')
+    },
+
+    /**
+     * 获取菜单列表
+     */
+    getMenuList(params?: MenuListParams): Promise<ResponseData<MenuListResponse>> {
+        return request.get<MenuListResponse>('/menu/list', params)
+    },
+
+    /**
+     * 获取菜单详情
+     */
+    getMenuDetail(menuId: string): Promise<ResponseData<Menu>> {
+        return request.get<Menu>(`/menu/${menuId}`)
+    },
+
+    /**
+     * 创建菜单
+     */
+    createMenu(data: CreateMenuRequest): Promise<ResponseData<Menu>> {
+        return request.post<Menu>('/menu', data)
+    },
+
+    /**
+     * 更新菜单
+     */
+    updateMenu(menuId: string, data: UpdateMenuRequest): Promise<ResponseData<Menu>> {
+        return request.put<Menu>(`/menu/${menuId}`, data)
+    },
+
+    /**
+     * 删除菜单
+     */
+    deleteMenu(menuId: string): Promise<ResponseData<void>> {
+        return request.delete<void>(`/menu/${menuId}`)
+    },
+
+    /**
+     * 获取菜单树
+     */
+    getMenuTree(menuType: string): Promise<ResponseData<Menu[]>> {
+        return request.get<Menu[]>('/menu/tree', { menu_type: menuType })
     },
 }
 

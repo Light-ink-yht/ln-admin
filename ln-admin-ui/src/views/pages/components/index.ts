@@ -57,3 +57,9 @@ export {
     getSMSCodeColumns,
 } from './sms/smsConfig'
 
+// 菜单相关工具
+export {
+    getMenuSearchFields,
+    getMenuColumns,
+} from './menu/menuConfig'
+

@@ -63,16 +63,23 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 
 		// 菜单相关路由（需要认证）
 		menu := api.Group("/menu")
-		menu.Use(middleware.Auth()) // 只需JWT认证
+		menu.Use(middleware.Auth()) // JWT认证
 		{
 			menu.GET("/sidebar", menuHandler.GetSidebarMenus) // 获取侧边栏菜单（动态）
 			menu.GET("/user", menuHandler.GetUserMenus)       // 获取用户下拉菜单（动态）
-			menu.GET("/list", menuHandler.ListMenus)          // 获取菜单列表
-			menu.GET("/tree", menuHandler.GetMenuTree)        // 获取菜单树
-			menu.POST("", menuHandler.CreateMenu)             // 创建菜单
-			menu.GET("/:id", menuHandler.GetMenu)             // 获取菜单详情（必须放在最后，避免与/list等冲突）
-			menu.PUT("/:id", menuHandler.UpdateMenu)          // 更新菜单
-			menu.DELETE("/:id", menuHandler.DeleteMenu)       // 删除菜单
+		}
+
+		// 菜单管理相关路由（需要认证和权限验证）
+		menuManagement := api.Group("/menu")
+		menuManagement.Use(middleware.Auth())             // JWT认证
+		menuManagement.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			menuManagement.GET("/list", menuHandler.ListMenus)    // 获取菜单列表
+			menuManagement.GET("/tree", menuHandler.GetMenuTree)  // 获取菜单树
+			menuManagement.POST("", menuHandler.CreateMenu)       // 创建菜单
+			menuManagement.GET("/:id", menuHandler.GetMenu)       // 获取菜单详情（必须放在最后，避免与/list等冲突）
+			menuManagement.PUT("/:id", menuHandler.UpdateMenu)    // 更新菜单
+			menuManagement.DELETE("/:id", menuHandler.DeleteMenu) // 删除菜单
 		}
 
 		// 工作台相关路由（需要认证）

@@ -31,6 +31,9 @@ const PermissionList = () => import('@/views/pages/user/PermissionList.vue')
 const SMSTemplateList = () => import('@/views/pages/sms/SMSTemplateList.vue')
 const SMSCodeList = () => import('@/views/pages/sms/SMSCodeList.vue')
 
+// 菜单管理模块
+const MenuList = () => import('@/views/pages/menu/MenuList.vue')
+
 // 系统管理模块
 const SystemConfig = () => import('@/views/pages/system/SystemConfig.vue')
 const SystemLog = () => import('@/views/pages/system/SystemLog.vue')
@@ -154,6 +157,17 @@ const routes: RouteRecordRaw[] = [
                 meta: {
                     title: '短信验证码',
                     category: 'sms',
+                    requiresAuth: true,
+                },
+            },
+            // ========== 菜单管理模块 ==========
+            {
+                path: 'menu/list',
+                name: 'MenuList',
+                component: MenuList,
+                meta: {
+                    title: '菜单列表',
+                    category: 'system',
                     requiresAuth: true,
                 },
             },
