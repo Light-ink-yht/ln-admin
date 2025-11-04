@@ -19,4 +19,7 @@ type SMSCodeRepository interface {
 
 	// MarkAsUsed 标记为已使用
 	MarkAsUsed(ctx context.Context, codeID string) error
+
+	// List 查询验证码列表
+	List(ctx context.Context, page, pageSize int, conditions map[string]interface{}) ([]*entity.SMSCode, int64, error)
 }

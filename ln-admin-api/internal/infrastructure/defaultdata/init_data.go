@@ -10,7 +10,7 @@ import (
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/logger"
-	infraRepo "github.com/Light-ink-yht/ln-admin/i
+	infraRepo "github.com/Light-ink-yht/ln-admin/internal/infrastructure/repository"
 	"github.com/Light-ink-yht/ln-admin/pkg/config"
 	"github.com/Light-ink-yht/ln-admin/pkg/service/casbin_service"
 	"github.com/Light-ink-yht/ln-admin/pkg/utils"
@@ -376,6 +376,73 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			ResourcePath:   "/api/system/log/list",
 			Method:         "GET",
 			Description:    "查看系统操作日志列表",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		// 短信管理权限
+		{
+			PermissionID:   "perm_sms_template_list",
+			PermissionKey:  "sms:template:list",
+			PermissionName: "短信模板列表",
+			ResourcePath:   "/api/sms/template/list",
+			Method:         "GET",
+			Description:    "查看短信模板列表",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_sms_template_detail",
+			PermissionKey:  "sms:template:detail",
+			PermissionName: "短信模板详情",
+			ResourcePath:   "/api/sms/template/*",
+			Method:         "GET",
+			Description:    "查看短信模板详情",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_sms_template_create",
+			PermissionKey:  "sms:template:create",
+			PermissionName: "创建短信模板",
+			ResourcePath:   "/api/sms/template",
+			Method:         "POST",
+			Description:    "创建短信模板",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_sms_template_update",
+			PermissionKey:  "sms:template:update",
+			PermissionName: "更新短信模板",
+			ResourcePath:   "/api/sms/template/*",
+			Method:         "PUT",
+			Description:    "更新短信模板",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_sms_template_delete",
+			PermissionKey:  "sms:template:delete",
+			PermissionName: "删除短信模板",
+			ResourcePath:   "/api/sms/template/*",
+			Method:         "DELETE",
+			Description:    "删除短信模板",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_sms_code_list",
+			PermissionKey:  "sms:code:list",
+			PermissionName: "短信验证码列表",
+			ResourcePath:   "/api/sms/code/list",
+			Method:         "GET",
+			Description:    "查看短信验证码列表",
 			Status:         "1",
 			CreatorID:      "system",
 			ModifierID:     "system",

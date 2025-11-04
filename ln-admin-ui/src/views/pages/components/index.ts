@@ -49,3 +49,11 @@ export {
     getSystemLogColumns,
 } from './system/systemLogConfig'
 
+// 短信相关工具
+export {
+    getSMSTemplateSearchFields,
+    getSMSTemplateColumns,
+    getSMSCodeSearchFields,
+    getSMSCodeColumns,
+} from './sms/smsConfig'
+

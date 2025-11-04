@@ -73,3 +73,43 @@ func (r *smsCodeRepositoryImpl) UpdateStatus(ctx context.Context, codeID string,
 func (r *smsCodeRepositoryImpl) MarkAsUsed(ctx context.Context, codeID string) error {
 	return r.UpdateStatus(ctx, codeID, "2")
 }
+
+// List 查询验证码列表
+func (r *smsCodeRepositoryImpl) List(ctx context.Context, page, pageSize int, conditions map[string]interface{}) ([]*entity.SMSCode, int64, error) {
+	var aa04List []entity.AA04
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&entity.AA04{})
+
+	// 应用查询条件
+	for key, value := range conditions {
+		switch key {
+		case "phone":
+			query = query.Where("AAD002 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+		case "type":
+			query = query.Where("AAD004 = ?", value)
+		case "status":
+			query = query.Where("AAD005 = ?", value)
+		}
+	}
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("查询验证码总数失败: %w", err)
+	}
+
+	// 分页查询
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&aa04List).Error; err != nil {
+		return nil, 0, fmt.Errorf("分页查询验证码失败: %w", err)
+	}
+
+	codes := make([]*entity.SMSCode, len(aa04List))
+	for i, aa04 := range aa04List {
+		code := &entity.SMSCode{}
+		code.FromAA04(&aa04)
+		codes[i] = code
+	}
+
+	return codes, total, nil
+}

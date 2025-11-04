@@ -82,6 +82,25 @@ func (s *MenuService) getAllMenus() []dto.MenuItem {
 			},
 		},
 		{
+			Key:   "sms-management",
+			Title: "短信管理",
+			Icon:  "MessageOutlined",
+			Children: []dto.MenuItem{
+				{
+					Key:        "sms-template",
+					Title:      "短信模板",
+					Path:       "/sms/template",
+					Permission: "/sms/template/list:GET",
+				},
+				{
+					Key:        "sms-code",
+					Title:      "短信验证码",
+					Path:       "/sms/code",
+					Permission: "/sms/code/list:GET",
+				},
+			},
+		},
+		{
 			Key:   "system-settings",
 			Title: "系统设置",
 			Icon:  "SettingOutlined",

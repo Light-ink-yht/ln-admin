@@ -90,6 +90,24 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 			workbench.DELETE("/config/:config_id", workbenchHandler.DeleteWorkbenchConfig) // 删除工作台配置
 		}
 
+		// 短信管理相关路由（需要认证和权限验证）
+		templateRepo := infraRepo.NewSMSTemplateRepository()
+		templateService := service.NewSMSTemplateService(templateRepo)
+		codeRepo := infraRepo.NewSMSCodeRepository()
+		codeService := service.NewSMSCodeService(codeRepo)
+		smsHandler := handler.NewSMSHandler(templateService, codeService)
+		sms := api.Group("/sms")
+		sms.Use(middleware.Auth())             // JWT认证
+		sms.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			sms.GET("/template/list", smsHandler.GetTemplateList)          // 获取短信模板列表
+			sms.GET("/template/:templateId", smsHandler.GetTemplateDetail) // 获取短信模板详情
+			sms.POST("/template", smsHandler.CreateTemplate)               // 创建短信模板
+			sms.PUT("/template/:templateId", smsHandler.UpdateTemplate)    // 更新短信模板
+			sms.DELETE("/template/:templateId", smsHandler.DeleteTemplate) // 删除短信模板
+			sms.GET("/code/list", smsHandler.GetCodeList)                  // 获取短信验证码列表
+		}
+
 		// 系统配置和日志相关路由（需要认证和权限验证）
 		configRepo := infraRepo.NewSystemConfigRepository()
 		configService := service.NewSystemConfigService(configRepo)
