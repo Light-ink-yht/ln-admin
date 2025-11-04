@@ -26,6 +26,17 @@ export function getAntdThemeConfig(config: ThemeConfig): any {
 }
 
 /**
+ * 从十六进制颜色转换为RGB值
+ */
+function hexToRgb(hex: string): string {
+    const num = parseInt(hex.replace('#', ''), 16)
+    const r = (num >> 16) & 255
+    const g = (num >> 8) & 255
+    const b = num & 255
+    return `${r}, ${g}, ${b}`
+}
+
+/**
  * 生成 CSS 变量
  */
 export function generateCSSVariables(colorPrimary: string): Record<string, string> {
@@ -33,6 +44,7 @@ export function generateCSSVariables(colorPrimary: string): Record<string, strin
         '--color-primary': colorPrimary,
         '--color-primary-hover': adjustColor(colorPrimary, 10),
         '--color-primary-active': adjustColor(colorPrimary, -10),
+        '--color-primary-rgb': hexToRgb(colorPrimary),
     }
 
     return cssVars

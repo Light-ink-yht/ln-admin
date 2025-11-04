@@ -37,6 +37,10 @@ const service: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json;charset=UTF-8',
     },
+    // 配置参数序列化，支持数组参数（key[]=value1&key[]=value2）
+    paramsSerializer: {
+        indexes: null, // 使用 key[]=value 格式而不是 key[0]=value
+    },
 })
 
 /**
@@ -128,6 +132,13 @@ service.interceptors.response.use(
                 message.success(responseMessage)
             }
             return res as any
+        } else if (res.code === 403) {
+            // 权限不足
+            const errorMsg = responseMessage || '没有权限访问该资源'
+            if (config.showErrorMessage !== false) {
+                message.error(errorMsg)
+            }
+            return Promise.reject(new Error(errorMsg))
         } else {
             // 其他错误码
             const errorMsg = responseMessage || '请求失败'

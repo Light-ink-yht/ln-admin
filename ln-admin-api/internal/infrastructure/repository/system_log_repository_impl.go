@@ -45,19 +45,19 @@ func (r *systemLogRepositoryImpl) List(ctx context.Context, page, pageSize int, 
 	for key, value := range conditions {
 		switch key {
 		case "level":
-			query = query.Where("AAA032 = ?", value)
+			query = query.Where("AAC002 = ?", value)
 		case "module":
-			query = query.Where("AAA033 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			query = query.Where("AAC003 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
 		case "action":
-			query = query.Where("AAA034 = ?", value)
+			query = query.Where("AAC004 = ?", value)
 		case "user_id":
-			query = query.Where("AAA036 = ?", value)
+			query = query.Where("AAC006 = ?", value)
 		case "ip":
-			query = query.Where("AAA037 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
+			query = query.Where("AAC007 LIKE ?", "%"+fmt.Sprintf("%v", value)+"%")
 		case "start_time":
-			query = query.Where("AAA043 >= ?", value)
+			query = query.Where("AAC013 >= ?", value)
 		case "end_time":
-			query = query.Where("AAA043 <= ?", value)
+			query = query.Where("AAC013 <= ?", value)
 		}
 	}
 
@@ -68,7 +68,7 @@ func (r *systemLogRepositoryImpl) List(ctx context.Context, page, pageSize int, 
 
 	// 分页查询
 	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("AAA043 DESC").Find(&aa03List).Error; err != nil {
+	if err := query.Offset(offset).Limit(pageSize).Order("AAC013 DESC").Find(&aa03List).Error; err != nil {
 		return nil, 0, fmt.Errorf("分页查询日志失败: %w", err)
 	}
 

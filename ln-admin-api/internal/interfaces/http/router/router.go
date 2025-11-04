@@ -90,6 +90,25 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 			workbench.DELETE("/config/:config_id", workbenchHandler.DeleteWorkbenchConfig) // 删除工作台配置
 		}
 
+		// 系统配置和日志相关路由（需要认证和权限验证）
+		configRepo := infraRepo.NewSystemConfigRepository()
+		configService := service.NewSystemConfigService(configRepo)
+		configHandler := handler.NewSystemConfigHandler(configService)
+		logRepo := infraRepo.NewSystemLogRepository()
+		logService := service.NewSystemLogService(logRepo)
+		logHandler := handler.NewSystemLogHandler(logService)
+		system := api.Group("/system")
+		system.Use(middleware.Auth())             // JWT认证
+		system.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			system.GET("/config/list", configHandler.GetAllConfigs)             // 获取所有配置
+			system.GET("/config/group/:group", configHandler.GetConfigsByGroup) // 根据分组获取配置
+			system.GET("/config/:key", configHandler.GetConfigByKey)            // 根据配置键获取配置
+			system.POST("/config", configHandler.CreateConfig)                  // 创建配置
+			system.PUT("/config/:key", configHandler.UpdateConfig)              // 更新配置
+			system.GET("/log/list", logHandler.GetLogList)                      // 获取系统日志列表
+		}
+
 		// 需要认证和权限验证的路由（管理功能）
 		admin := api.Group("/user")
 		admin.Use(middleware.Auth())             // JWT认证

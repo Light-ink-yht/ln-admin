@@ -10,6 +10,7 @@ import (
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/logger"
+	infraRepo "github.com/Light-ink-yht/ln-admin/i
 	"github.com/Light-ink-yht/ln-admin/pkg/config"
 	"github.com/Light-ink-yht/ln-admin/pkg/service/casbin_service"
 	"github.com/Light-ink-yht/ln-admin/pkg/utils"
@@ -42,6 +43,12 @@ func InitDefaultData(
 	// 初始化默认短信模板
 	if err := initDefaultSMSTemplates(ctx, templateRepo); err != nil {
 		return fmt.Errorf("初始化默认短信模板失败: %w", err)
+	}
+
+	// 初始化默认系统配置
+	configRepo := infraRepo.NewSystemConfigRepository()
+	if err := initDefaultSystemConfigs(ctx, configRepo); err != nil {
+		return fmt.Errorf("初始化默认系统配置失败: %w", err)
 	}
 
 	// 初始化默认用户
@@ -305,6 +312,74 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			CreatorID:      "system",
 			ModifierID:     "system",
 		},
+		// 系统配置管理权限
+		{
+			PermissionID:   "perm_system_config_list",
+			PermissionKey:  "system:config:list",
+			PermissionName: "系统配置列表",
+			ResourcePath:   "/api/system/config/list",
+			Method:         "GET",
+			Description:    "查看系统配置列表",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_system_config_group",
+			PermissionKey:  "system:config:group",
+			PermissionName: "系统配置分组",
+			ResourcePath:   "/api/system/config/group/*",
+			Method:         "GET",
+			Description:    "根据分组查看系统配置",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_system_config_detail",
+			PermissionKey:  "system:config:detail",
+			PermissionName: "系统配置详情",
+			ResourcePath:   "/api/system/config/*",
+			Method:         "GET",
+			Description:    "查看系统配置详情",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_system_config_create",
+			PermissionKey:  "system:config:create",
+			PermissionName: "创建系统配置",
+			ResourcePath:   "/api/system/config",
+			Method:         "POST",
+			Description:    "创建系统配置",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_system_config_update",
+			PermissionKey:  "system:config:update",
+			PermissionName: "更新系统配置",
+			ResourcePath:   "/api/system/config/*",
+			Method:         "PUT",
+			Description:    "更新系统配置",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		// 系统日志管理权限
+		{
+			PermissionID:   "perm_system_log_list",
+			PermissionKey:  "system:log:list",
+			PermissionName: "系统日志列表",
+			ResourcePath:   "/api/system/log/list",
+			Method:         "GET",
+			Description:    "查看系统操作日志列表",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
 	}
 
 	for _, permission := range defaultPermissions {
@@ -322,6 +397,133 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 				}
 			} else {
 				logger.Info("创建默认权限", zap.String("permission", permission.PermissionName))
+			}
+		}
+	}
+
+	return nil
+}
+
+// initDefaultSystemConfigs 初始化默认系统配置
+func initDefaultSystemConfigs(ctx context.Context, configRepo repository.SystemConfigRepository) error {
+	defaultConfigs := []*entity.SystemConfig{
+		{
+			ConfigKey:   "site_name",
+			ConfigValue: "LN Admin",
+			ConfigName:  "网站名称",
+			ConfigGroup: "system",
+			Description: "网站/系统的名称，显示在页面标题、LOGO等位置",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_logo",
+			ConfigValue: "",
+			ConfigName:  "网站LOGO",
+			ConfigGroup: "system",
+			Description: "网站LOGO图片URL地址",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_favicon",
+			ConfigValue: "",
+			ConfigName:  "网站图标",
+			ConfigGroup: "system",
+			Description: "网站Favicon图标URL地址",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_copyright",
+			ConfigValue: "© 2024 LN Admin 基于 Vue 3 + Ant Design Vue",
+			ConfigName:  "版权信息",
+			ConfigGroup: "system",
+			Description: "网站底部版权信息",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_description",
+			ConfigValue: "LN Admin 管理系统",
+			ConfigName:  "网站描述",
+			ConfigGroup: "system",
+			Description: "网站/系统的描述信息",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_keywords",
+			ConfigValue: "LN Admin,管理系统,后台管理",
+			ConfigName:  "网站关键词",
+			ConfigGroup: "system",
+			Description: "网站SEO关键词，多个关键词用逗号分隔",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_beian",
+			ConfigValue: "",
+			ConfigName:  "备案号",
+			ConfigGroup: "system",
+			Description: "网站ICP备案号",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_contact_email",
+			ConfigValue: "",
+			ConfigName:  "联系邮箱",
+			ConfigGroup: "system",
+			Description: "系统联系邮箱地址",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_contact_phone",
+			ConfigValue: "",
+			ConfigName:  "联系电话",
+			ConfigGroup: "system",
+			Description: "系统联系电话",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "site_address",
+			ConfigValue: "",
+			ConfigName:  "公司地址",
+			ConfigGroup: "system",
+			Description: "公司/组织地址",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+	}
+
+	for _, config := range defaultConfigs {
+		// 检查配置是否已存在
+		existing, err := configRepo.GetByKey(ctx, config.ConfigKey)
+		if err != nil {
+			return fmt.Errorf("查询配置失败: %w", err)
+		}
+		if existing == nil {
+			// 配置不存在，创建新配置
+			if err := configRepo.Create(ctx, config); err != nil {
+				// 如果是重复键错误，忽略
+				if !isDuplicateError(err) {
+					return fmt.Errorf("创建配置 %s 失败: %w", config.ConfigName, err)
+				}
+			} else {
+				logger.Info("创建默认系统配置", zap.String("config", config.ConfigName))
 			}
 		}
 	}

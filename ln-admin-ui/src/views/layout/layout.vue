@@ -47,6 +47,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useThemeStore } from '@/stores/modules/theme'
 import { useUserStore } from '@/stores/modules/user'
+import { useSystemConfigStore } from '@/stores/modules/systemConfig'
 import Header from './components/Header.vue'
 import Sidebar from './components/Sidebar.vue'
 import Footer from './components/Footer.vue'
@@ -57,6 +58,7 @@ const router = useRouter()
 const route = useRoute()
 const themeStore = useThemeStore()
 const userStore = useUserStore()
+const systemConfigStore = useSystemConfigStore()
 
 // 用户信息（从store获取）
 const userInfo = computed(() => userStore.userInfo)
@@ -78,6 +80,8 @@ const checkMobile = () => {
 onMounted(async () => {
     // 初始化用户信息（从存储恢复或从服务器获取）
     await userStore.initUserInfo()
+    // 初始化系统配置
+    await systemConfigStore.initConfigs()
     checkMobile()
     window.addEventListener('resize', checkMobile)
 })
