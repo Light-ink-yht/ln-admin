@@ -7,15 +7,15 @@
                 </template>
             </a-avatar>
             <span class="user-name">{{ currentUserInfo.nickname || currentUserInfo.fullName || '用户' }}</span>
-            <DownOutlined />
+            <DownOutlined class="dropdown-arrow" />
         </div>
         <template #overlay>
             <a-menu @click="handleMenuClick">
-                <template v-for="(item, index) in menuItems" :key="item.key">
-                    <a-menu-divider v-if="item.divider && index > 0" />
-                    <a-menu-item>
-                        <component v-if="item.icon" :is="getIcon(item.icon)" />
-                        <span>{{ item.label }}</span>
+                <template v-for="processedItem in processedMenuItems" :key="processedItem.key">
+                    <a-menu-divider v-if="processedItem.type === 'divider'" />
+                    <a-menu-item v-else :key="processedItem.item!.key">
+                        <component v-if="processedItem.item?.icon" :is="getIcon(processedItem.item.icon)" />
+                        <span>{{ processedItem.item?.label }}</span>
                     </a-menu-item>
                 </template>
             </a-menu>
@@ -56,6 +56,18 @@ const currentUserInfo = computed(() => props.userInfo || userStore.userInfo)
 
 const menuItems = ref<UserMenuItem[]>([])
 
+// 处理菜单项，将 divider 和 menu-item 分开
+const processedMenuItems = computed(() => {
+    const result: Array<{ type: 'divider' | 'item'; item?: UserMenuItem; key: string }> = []
+    menuItems.value.forEach((item, index) => {
+        if (item.divider && index > 0) {
+            result.push({ type: 'divider', key: `divider-${item.key}` })
+        }
+        result.push({ type: 'item', item, key: item.key })
+    })
+    return result
+})
+
 // 图标映射
 const iconMap: Record<string, Component> = {
     UserOutlined,
@@ -76,7 +88,33 @@ const fetchUserMenus = async () => {
     try {
         const res = await menuApi.getUserMenus()
         if (res.code === 200 || res.code === 0) {
-            menuItems.value = res.data || []
+            // 过滤菜单，只保留个人资料和退出登录
+            const allMenus = res.data || []
+            const filteredMenus = allMenus.filter((item: UserMenuItem) => {
+                const key = item.key || ''
+                return key === 'profile' || key === 'logout'
+            })
+            
+            // 为过滤后的菜单添加onClick处理
+            menuItems.value = filteredMenus.map((item: UserMenuItem) => {
+                if (!item.onClick) {
+                    if (item.key === 'profile') {
+                        item.onClick = () => {
+                            router.push('/profile').catch(() => {})
+                        }
+                    } else if (item.key === 'logout') {
+                        item.onClick = handleLogout
+                    }
+                }
+                return item
+            })
+            
+            // 如果过滤后没有菜单，使用默认菜单
+            if (menuItems.value.length === 0) {
+                setDefaultMenus()
+            }
+        } else {
+            setDefaultMenus()
         }
     } catch (error) {
         console.error('获取用户菜单失败:', error)
@@ -85,7 +123,7 @@ const fetchUserMenus = async () => {
     }
 }
 
-// 设置默认菜单
+// 设置默认菜单（只保留个人资料和退出登录）
 const setDefaultMenus = () => {
     menuItems.value = [
         {
@@ -93,15 +131,7 @@ const setDefaultMenus = () => {
             label: '个人资料',
             icon: 'UserOutlined',
             onClick: () => {
-                router.push('/profile')
-            },
-        },
-        {
-            key: 'settings',
-            label: '设置',
-            icon: 'SettingOutlined',
-            onClick: () => {
-                router.push('/settings')
+                router.push('/profile').catch(() => {})
             },
         },
         {
@@ -135,9 +165,19 @@ const handleLogout = async () => {
 }
 
 const handleMenuClick = ({ key }: { key: string }) => {
+    console.log('菜单点击:', key, menuItems.value)
     const menuItem = menuItems.value.find((item) => item.key === key)
-    if (menuItem && menuItem.onClick) {
-        menuItem.onClick()
+    if (menuItem) {
+        if (menuItem.onClick) {
+            menuItem.onClick()
+        } else {
+            // 如果没有onClick，根据key执行默认操作
+            if (key === 'profile') {
+                router.push('/profile')
+            } else if (key === 'logout') {
+                handleLogout()
+            }
+        }
     }
 }
 
@@ -200,6 +240,43 @@ onMounted(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
     transition: color 0.3s;
+}
+
+.dropdown-arrow {
+    font-size: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.6;
+    color: inherit;
+    margin-left: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.user-info:hover .dropdown-arrow {
+    opacity: 1;
+    transform: translateY(2px) scale(1.1);
+    color: var(--ant-primary-color, #1890ff);
+}
+
+/* 添加一个微妙的背景光晕效果 */
+.dropdown-arrow::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(24, 144, 255, 0.15) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    transform: translate(-50%, -50%);
+    top: 50%;
+    left: 50%;
+}
+
+.user-info:hover .dropdown-arrow::before {
+    opacity: 1;
 }
 
 /* 移动端优化 */

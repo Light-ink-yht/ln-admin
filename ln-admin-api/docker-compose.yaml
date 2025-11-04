@@ -11,48 +11,41 @@ services:
     ports:
       - "3306:3306"
     networks:
-      - app-network  # 加入共享网络，方便服务间通信
+      - app-network
 
   # Redis 服务
   redis:
     image: 'bitnami/redis:latest'
     restart: always
     environment:
-      - ALLOW_EMPTY_PASSWORD=yes  # 允许空密码（仅测试用，生产环境需设置密码）
+      - ALLOW_EMPTY_PASSWORD=yes  # 仅用于测试，生产环境请设置密码
     ports:
       - '6379:6379'
     networks:
-      - app-network  # 加入共享网络
+      - app-network
 
-  # Oracle 服务
-  oracle-db:
-    image: container-registry.oracle.com/database/enterprise:12.2.0.1
-    container_name: oracle-db
+  # RabbitMQ 服务（带管理界面）
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
     restart: always
     environment:
-      - ORACLE_SID=ink       # 数据库实例名
-      - ORACLE_PDB=yht224563      # 可插拔数据库名
-      - ORACLE_PWD=yht224563  # 管理员密码（需符合复杂度）
-      - ORACLE_CHARACTERSET=ZHS16GBK  # 改为GBK字符集（Oracle标准名称）
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123  # 请根据安全要求修改
     ports:
-      - "1521:1521"
-      - "5500:5500"
+      - "5672:5672"    # AMQP 协议端口（应用连接用）
+      - "15672:15672"  # Web 管理界面
     volumes:
-      - oracle-data:/opt/oracle/oradata
+      - rabbitmq_data:/var/lib/rabbitmq
     networks:
-      - app-network  # 统一使用共享网络，替代单独的 oracle-network
-    healthcheck:
-      test: ["CMD", "sqlplus", "-S", "sys/YourPassword123@//localhost:1521/ORCLCDB as sysdba", "-c", "SELECT 1 FROM DUAL;"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
+      - app-network
 
-# 统一网络（所有服务加入同一网络，方便内部通信）
+# 共享网络（所有服务通过服务名互相访问）
 networks:
   app-network:
     driver: bridge
 
-# 数据卷（仅Oracle需要持久化，MySQL和Redis可按需添加）
+# 数据卷（持久化 RabbitMQ 数据）
 volumes:
-  oracle-data:
+  rabbitmq_data:
     driver: local
