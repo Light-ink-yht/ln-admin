@@ -30,6 +30,7 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
     const siteContactEmail = computed(() => getConfig('site_contact_email', ''))
     const siteContactPhone = computed(() => getConfig('site_contact_phone', ''))
     const siteAddress = computed(() => getConfig('site_address', ''))
+    const apiDocUrl = computed(() => getConfig('api_doc_url', ''))
 
     // 加载配置列表
     const loadConfigs = async () => {
@@ -118,6 +119,7 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
         siteContactEmail,
         siteContactPhone,
         siteAddress,
+        apiDocUrl,
         loadConfigs,
         updateConfig,
         initConfigs,
