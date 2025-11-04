@@ -134,6 +134,16 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 			system.GET("/log/list", logHandler.GetLogList)                      // 获取系统日志列表
 		}
 
+		// 系统运维相关路由（需要认证和权限验证）
+		monitorService := service.NewSystemMonitorService()
+		monitorHandler := handler.NewSystemMonitorHandler(monitorService)
+		ops := api.Group("/ops")
+		ops.Use(middleware.Auth())             // JWT认证
+		ops.Use(middleware.CasbinMiddleware()) // Casbin权限验证
+		{
+			ops.GET("/monitor", monitorHandler.GetSystemMonitor) // 获取系统监控信息
+		}
+
 		// 需要认证和权限验证的路由（管理功能）
 		admin := api.Group("/user")
 		admin.Use(middleware.Auth())             // JWT认证
@@ -187,9 +197,23 @@ func SetupRouter(userAppService *service.UserAppService, smsAppService *service.
 	}
 
 	// Swagger文档路由
-	// 配置 Swagger UI，指定文档路径为 /swagger/doc.json
-	url := ginSwagger.URL("/swagger/doc.json")
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
+	// 注意：Swagger UI的静态资源请求不需要认证，只有doc.json需要认证
+	// 为了简化，Swagger UI完全开放访问（内部系统可以接受）
+	// 如果需要保护，可以添加IP白名单或其他安全措施
+	swagger := r.Group("/swagger")
+	{
+		url := ginSwagger.URL("/swagger/doc.json")
+		swagger.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
+	}
+
+	// Swagger文档JSON需要认证（可选，如果需要保护API文档）
+	// swaggerDoc := r.Group("/swagger")
+	// swaggerDoc.Use(middleware.Auth())
+	// {
+	// 	swaggerDoc.GET("/doc.json", func(c *gin.Context) {
+	// 		// 返回Swagger JSON文档
+	// 	})
+	// }
 
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {

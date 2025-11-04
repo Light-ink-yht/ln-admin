@@ -5,11 +5,61 @@
                 <h2 class="page-title">{{ title }}</h2>
             </template>
             <template #extra>
-                <a-button type="text" :loading="loading" @click="fetchData" title="刷新">
-                    <template #icon>
-                        <ReloadOutlined :spin="loading" />
+                <div class="header-actions">
+                    <!-- 顶部操作按钮 -->
+                    <template v-if="extraActions && extraActions.length">
+                        <a-button
+                            v-for="action in extraActions"
+                            :key="action.key"
+                            :type="action.type || 'primary'"
+                            :danger="action.danger"
+                            @click="action.onClick"
+                            class="action-btn"
+                        >
+                            <template v-if="action.icon" #icon>
+                                <component :is="action.icon" />
+                            </template>
+                            {{ action.label }}
+                        </a-button>
                     </template>
-                </a-button>
+                    <!-- 批量删除按钮 -->
+                    <a-button
+                        v-if="showBatchDelete && selectedRowKeys.length > 0"
+                        :disabled="selectedRowKeys.length === 0"
+                        @click="handleBatchDelete"
+                        class="action-btn"
+                    >
+                        <template #icon>
+                            <DeleteOutlined />
+                        </template>
+                        批量删除
+                    </a-button>
+                    <!-- 刷新按钮 -->
+                    <a-button
+                        type="default"
+                        :loading="loading"
+                        @click="fetchData"
+                        class="action-btn"
+                        title="刷新"
+                    >
+                        <template #icon>
+                            <ReloadOutlined :spin="loading" />
+                        </template>
+                        刷新
+                    </a-button>
+                    <!-- 列设置按钮 -->
+                    <a-button
+                        type="default"
+                        @click="showColumnSettings = !showColumnSettings"
+                        class="action-btn"
+                        title="列设置"
+                    >
+                        <template #icon>
+                            <SettingOutlined />
+                        </template>
+                        列设置
+                    </a-button>
+                </div>
             </template>
 
             <!-- 搜索表单 -->
@@ -87,34 +137,63 @@
                 </a-collapse>
             </div>
 
-            <!-- 操作栏（顶部按钮） -->
-            <div v-if="$slots.extra || extraActions?.length" class="extra-actions">
+            <!-- 操作栏（底部按钮，用于自定义内容） -->
+            <div v-if="$slots.extra" class="extra-actions">
                 <slot name="extra"></slot>
-                <template v-if="extraActions && extraActions.length">
-                    <a-button
-                        v-for="action in extraActions"
-                        :key="action.key"
-                        :type="action.type || 'default'"
-                        :danger="action.danger"
-                        @click="action.onClick"
-                    >
-                        <template v-if="action.icon" #icon>
-                            <component :is="action.icon" />
-                        </template>
-                        {{ action.label }}
-                    </a-button>
-                </template>
             </div>
+
+            <!-- 列设置弹窗 -->
+            <a-drawer
+                v-model:open="showColumnSettings"
+                title="列设置"
+                placement="right"
+                :width="360"
+                :mask-closable="true"
+            >
+                <div class="column-settings">
+                    <div class="column-settings-header">
+                        <a-button type="link" size="small" @click="handleSelectAllColumns">
+                            全选
+                        </a-button>
+                        <a-button type="link" size="small" @click="handleUnselectAllColumns">
+                            取消全选
+                        </a-button>
+                        <a-button type="link" size="small" @click="handleResetColumns">
+                            重置
+                        </a-button>
+                    </div>
+                    <div class="column-settings-list">
+                        <a-checkbox-group v-model:value="visibleColumnKeys" class="column-checkbox-group">
+                            <div
+                                v-for="column in availableColumns"
+                                :key="column.key"
+                                class="column-item"
+                            >
+                                <a-checkbox
+                                    :value="column.key"
+                                    :disabled="column.fixed || column.key === 'action'"
+                                >
+                                    {{ column.title }}
+                                </a-checkbox>
+                                <span v-if="column.fixed || column.key === 'action'" class="column-fixed-tag">
+                                    (固定)
+                                </span>
+                            </div>
+                        </a-checkbox-group>
+                    </div>
+                </div>
+            </a-drawer>
 
             <!-- 数据表格 -->
             <a-table
-                :columns="columns"
+                :columns="displayColumns"
                 :data-source="tableData"
                 :pagination="paginationConfig"
                 :loading="loading"
                 :scroll="scroll"
                 :size="tableSize"
                 :row-key="rowKey"
+                :row-selection="showRowSelection ? rowSelection : undefined"
                 class="data-table"
                 @change="handleTableChange"
             >
@@ -130,7 +209,7 @@
                     </template>
                     <!-- 默认操作列（如果配置了 actions） -->
                     <template v-else-if="column.key === 'action' && actions && actions.length">
-                        <a-space>
+                        <a-space :size="8">
                             <template v-for="action in actions" :key="action.key">
                                 <a-popconfirm
                                     v-if="action.confirm"
@@ -140,19 +219,21 @@
                                     @confirm="() => action.onClick(record)"
                                 >
                                     <a-button
-                                        :type="action.type || 'link'"
+                                        :type="getActionButtonType(action)"
                                         :size="action.size || 'small'"
                                         :danger="action.danger"
+                                        class="action-button"
                                     >
                                         {{ action.label }}
                                     </a-button>
                                 </a-popconfirm>
                                 <a-button
                                     v-else
-                                    :type="action.type || 'link'"
+                                    :type="getActionButtonType(action)"
                                     :size="action.size || 'small'"
                                     :danger="action.danger"
                                     @click="() => action.onClick(record)"
+                                    class="action-button"
                                 >
                                     {{ action.label }}
                                 </a-button>
@@ -167,7 +248,8 @@
 
 <script lang="ts" setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { SearchOutlined, ReloadOutlined, UpOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { SearchOutlined, ReloadOutlined, UpOutlined, DownOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons-vue'
+import { Modal, message } from 'ant-design-vue'
 import type { TableColumnsType, TableProps } from 'ant-design-vue'
 
 /**
@@ -255,6 +337,14 @@ interface Props {
     defaultPageSize?: number
     // 每页数量选项
     pageSizeOptions?: string[]
+    // 是否显示行选择（复选框）
+    showRowSelection?: boolean
+    // 是否显示批量删除
+    showBatchDelete?: boolean
+    // 批量删除回调
+    onBatchDelete?: (selectedKeys: string[]) => Promise<void>
+    // 列设置存储的key（用于localStorage）
+    columnSettingsKey?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -266,6 +356,8 @@ const props = withDefaults(defineProps<Props>(), {
     defaultPageSize: 10,
     pageSizeOptions: () => ['10', '20', '50', '100'],
     scroll: () => ({ x: 1200 }),
+    showRowSelection: false,
+    showBatchDelete: false,
 })
 
 // 搜索表单
@@ -283,6 +375,184 @@ const toggleSearchForm = () => {
 const tableData = ref<any[]>([])
 const loading = ref(false)
 const total = ref(0)
+
+// 行选择
+const selectedRowKeys = ref<string[]>([])
+const showColumnSettings = ref(false)
+
+// 列设置
+const visibleColumnKeys = ref<string[]>([])
+const originalColumns = computed(() => props.columns)
+
+// 获取所有可用的列（排除固定的列）
+const availableColumns = computed(() => {
+    return originalColumns.value.filter((col) => {
+        const key = col.key as string
+        // 操作列和固定的列必须显示，但也要在列表中显示（禁用状态）
+        return key
+    })
+})
+
+// 初始化可见列
+const initVisibleColumns = () => {
+    const storageKey = props.columnSettingsKey || `column_settings_${props.title}`
+    
+    // 从localStorage读取保存的列设置
+    try {
+        const saved = localStorage.getItem(storageKey)
+        if (saved) {
+            const savedKeys = JSON.parse(saved)
+            // 验证保存的key是否在现有列中存在
+            const validKeys = savedKeys.filter((key: string) =>
+                originalColumns.value.some((col) => col.key === key)
+            )
+            // 确保固定列和操作列始终包含在内
+            const fixedKeys = originalColumns.value
+                .filter((col) => col.fixed || col.key === 'action')
+                .map((col) => col.key as string)
+                .filter((key) => key)
+            
+            // 合并固定列和保存的列
+            const allKeys = [...new Set([...fixedKeys, ...validKeys])]
+            
+            if (allKeys.length > fixedKeys.length) {
+                visibleColumnKeys.value = allKeys
+                return
+            }
+        }
+    } catch (error) {
+        console.error('读取列设置失败:', error)
+    }
+    
+    // 如果没有保存的设置，默认显示所有列
+    visibleColumnKeys.value = originalColumns.value
+        .map((col) => col.key as string)
+        .filter((key) => key)
+}
+
+// 保存列设置到localStorage
+const saveColumnSettings = () => {
+    const storageKey = props.columnSettingsKey || `column_settings_${props.title}`
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(visibleColumnKeys.value))
+    } catch (error) {
+        console.error('保存列设置失败:', error)
+    }
+}
+
+// 根据可见列过滤显示的列
+const displayColumns = computed(() => {
+    return originalColumns.value.filter((col) => {
+        const key = col.key as string
+        // 操作列和固定的列始终显示
+        if (col.fixed || key === 'action') {
+            return true
+        }
+        // 复选框列始终显示
+        if (key === 'selection') {
+            return true
+        }
+        // 其他列根据用户选择显示
+        return visibleColumnKeys.value.includes(key)
+    })
+})
+
+// 监听可见列变化，自动保存（延迟保存，避免频繁写入）
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+watch(visibleColumnKeys, () => {
+    if (saveTimer) {
+        clearTimeout(saveTimer)
+    }
+    saveTimer = setTimeout(() => {
+        saveColumnSettings()
+    }, 300)
+}, { deep: true })
+
+// 全选列
+const handleSelectAllColumns = () => {
+    visibleColumnKeys.value = originalColumns.value
+        .map((col) => col.key as string)
+        .filter((key) => key)
+}
+
+// 取消全选列（保留固定的列）
+const handleUnselectAllColumns = () => {
+    visibleColumnKeys.value = originalColumns.value
+        .filter((col) => col.fixed || col.key === 'action')
+        .map((col) => col.key as string)
+        .filter((key) => key)
+}
+
+// 重置列设置
+const handleResetColumns = () => {
+    const storageKey = props.columnSettingsKey || `column_settings_${props.title}`
+    localStorage.removeItem(storageKey)
+    initVisibleColumns()
+    message.success('已重置为默认设置')
+}
+
+// 行选择配置
+const rowSelection = computed(() => {
+    if (!props.showRowSelection) return undefined
+    
+    return {
+        selectedRowKeys: selectedRowKeys.value,
+        onChange: (keys: string[]) => {
+            selectedRowKeys.value = keys
+        },
+        onSelectAll: (selected: boolean, selectedRows: any[], changeRows: any[]) => {
+            if (selected) {
+                const keys = changeRows.map((row) => {
+                    const key = typeof props.rowKey === 'function' ? props.rowKey(row) : row[props.rowKey]
+                    return String(key)
+                })
+                selectedRowKeys.value = [...selectedRowKeys.value, ...keys]
+            } else {
+                const keys = changeRows.map((row) => {
+                    const key = typeof props.rowKey === 'function' ? props.rowKey(row) : row[props.rowKey]
+                    return String(key)
+                })
+                selectedRowKeys.value = selectedRowKeys.value.filter((key) => !keys.includes(key))
+            }
+        },
+    }
+})
+
+// 获取操作按钮类型（根据按钮key自动设置）
+const getActionButtonType = (action: ActionButton): 'default' | 'primary' | 'dashed' | 'link' | 'text' => {
+    // 如果已经有type，使用原有type
+    if (action.type) return action.type
+    
+    // 根据key自动设置类型
+    if (action.key === 'edit') return 'primary'
+    if (action.key === 'delete') return 'default'
+    
+    return 'default'
+}
+
+// 批量删除
+const handleBatchDelete = async () => {
+    if (selectedRowKeys.value.length === 0) return
+    
+    Modal.confirm({
+        title: '确认批量删除',
+        content: `确定要删除选中的 ${selectedRowKeys.value.length} 条记录吗？此操作不可恢复。`,
+        okText: '确定',
+        cancelText: '取消',
+        okType: 'danger',
+        onOk: async () => {
+            if (props.onBatchDelete) {
+                try {
+                    await props.onBatchDelete(selectedRowKeys.value)
+                    selectedRowKeys.value = []
+                    fetchData()
+                } catch (error) {
+                    console.error('批量删除失败:', error)
+                }
+            }
+        },
+    })
+}
 
 // 初始化搜索表单
 const initSearchForm = () => {
@@ -430,18 +700,32 @@ const handleTableChange = (pag: any, filters: any, sorter: any) => {
     }
 }
 
+// 刷新
+const refresh = () => {
+    selectedRowKeys.value = []
+    fetchData()
+}
+
 // 暴露方法给父组件
 defineExpose({
-    refresh: fetchData,
+    refresh,
+    fetchData,
     reset: handleReset,
     search: handleSearch,
+    selectedRowKeys,
 })
 
 // 初始化
 onMounted(() => {
     initSearchForm()
+    initVisibleColumns()
     fetchData()
 })
+
+// 监听columns变化，重新初始化可见列
+watch(() => props.columns, () => {
+    initVisibleColumns()
+}, { deep: true })
 </script>
 
 <style scoped lang="less">
@@ -472,10 +756,29 @@ onMounted(() => {
 
         .page-title {
             margin: 0;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             color: #262626;
             letter-spacing: 0.5px;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
     }
 
@@ -613,6 +916,7 @@ onMounted(() => {
                 font-weight: 600;
                 border-bottom: 2px solid #e8e8e8;
                 padding: 10px 12px;
+                text-align: center;
             }
 
             .ant-table-tbody > tr {
@@ -627,6 +931,7 @@ onMounted(() => {
                     padding: 10px 12px;
                     border-bottom: 1px solid #f0f0f0;
                     color: #262626;
+                    text-align: center;
                 }
             }
 
@@ -643,6 +948,20 @@ onMounted(() => {
         }
 
         // 美化操作按钮
+        .action-button {
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-size: 13px;
+            padding: 4px 12px;
+            height: auto;
+            line-height: 1.5;
+            
+            &:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+        }
+        
         :deep(.ant-btn-link) {
             padding: 0 8px;
             height: auto;
@@ -666,6 +985,49 @@ onMounted(() => {
                 }
             }
         }
+        
+        :deep(.ant-table-selection-column) {
+            text-align: center;
+        }
+    }
+    
+    .column-settings {
+        .column-settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 16px;
+        }
+        
+        .column-settings-list {
+            .column-checkbox-group {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .column-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 12px;
+                border-radius: 4px;
+                transition: background-color 0.2s;
+                
+                &:hover {
+                    background-color: #f5f5f5;
+                }
+                
+                .column-fixed-tag {
+                    font-size: 12px;
+                    color: #8c8c8c;
+                    margin-left: 8px;
+                }
+            }
+        }
     }
 }
 
@@ -685,6 +1047,22 @@ body.dark-mode {
 
             .page-title {
                 color: #fff;
+            }
+        }
+        
+        .column-settings {
+            .column-settings-header {
+                border-bottom-color: #434343;
+            }
+            
+            .column-item {
+                &:hover {
+                    background-color: #2a2a2a;
+                }
+                
+                .column-fixed-tag {
+                    color: rgba(255, 255, 255, 0.45);
+                }
             }
         }
 

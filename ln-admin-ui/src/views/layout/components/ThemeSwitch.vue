@@ -129,11 +129,18 @@ const handleCustomColorChange = (value: string) => {
 }
 
 .theme-switch {
-    transition: background-color 0.3s, color 0.3s;
+    transition: all 0.3s;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
 }
 
 .theme-switch:hover {
     background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
 }
 
 :deep(.ant-dropdown-menu-item) {

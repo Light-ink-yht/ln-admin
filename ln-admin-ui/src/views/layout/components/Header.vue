@@ -64,14 +64,15 @@ const siteLogo = computed(() => systemConfigStore.siteLogo)
 const headerStyle = computed(() => {
     if (isDark.value) {
         return {
-            background: '#001529',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'linear-gradient(135deg, #001529 0%, #002140 100%)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.3)',
         }
     } else {
         return {
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #fafafa 100%)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
         }
     }
 })
@@ -109,25 +110,49 @@ const logoStyle = computed(() => {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex: 0 0 auto;
+    padding-right: 8px;
 }
 
 .logo {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 20px;
+    font-weight: 600;
     white-space: nowrap;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     height: 64px;
-    transition: color 0.3s;
+    transition: all 0.3s;
+    letter-spacing: 0.5px;
+    position: relative;
+}
+
+.logo::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--ant-primary-color), transparent);
+    transition: width 0.3s;
+}
+
+.logo:hover::after {
+    width: 100%;
 }
 
 .logo-img {
-    height: 32px;
+    height: 36px;
     width: auto;
     object-fit: contain;
+    border-radius: 4px;
+    transition: transform 0.3s;
+}
+
+.logo:hover .logo-img {
+    transform: scale(1.05);
 }
 
 .header-center {

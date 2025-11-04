@@ -156,15 +156,41 @@ onMounted(() => {
 .user-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
-    padding: 4px 12px;
-    border-radius: 4px;
-    transition: background-color 0.3s, color 0.3s;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.user-info::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.user-info:hover::before {
+    opacity: 1;
 }
 
 .user-info:hover {
     background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.ant-avatar) {
+    transition: transform 0.3s;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-info:hover :deep(.ant-avatar) {
+    transform: scale(1.1);
 }
 
 .user-name {

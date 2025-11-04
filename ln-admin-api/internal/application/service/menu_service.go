@@ -114,6 +114,25 @@ func (s *MenuService) getAllMenus() []dto.MenuItem {
 			},
 		},
 		{
+			Key:   "system-ops",
+			Title: "系统运维",
+			Icon:  "ToolOutlined",
+			Children: []dto.MenuItem{
+				{
+					Key:        "api-doc",
+					Title:      "接口文档",
+					Path:       "/ops/api-doc",
+					Permission: "/swagger:GET",
+				},
+				{
+					Key:        "system-monitor",
+					Title:      "系统监控",
+					Path:       "/ops/monitor",
+					Permission: "/ops/monitor:GET",
+				},
+			},
+		},
+		{
 			Key:   "system-settings",
 			Title: "系统设置",
 			Icon:  "SettingOutlined",

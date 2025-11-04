@@ -503,6 +503,29 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			CreatorID:      "system",
 			ModifierID:     "system",
 		},
+		// 系统运维权限
+		{
+			PermissionID:   "perm_ops_monitor",
+			PermissionKey:  "ops:monitor",
+			PermissionName: "系统监控",
+			ResourcePath:   "/api/ops/monitor",
+			Method:         "GET",
+			Description:    "查看系统监控信息（CPU、内存、磁盘等）",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
+		{
+			PermissionID:   "perm_ops_api_doc",
+			PermissionKey:  "ops:api-doc",
+			PermissionName: "接口文档",
+			ResourcePath:   "/api/swagger/*",
+			Method:         "GET",
+			Description:    "查看API接口文档",
+			Status:         "1",
+			CreatorID:      "system",
+			ModifierID:     "system",
+		},
 	}
 
 	for _, permission := range defaultPermissions {
@@ -626,6 +649,16 @@ func initDefaultSystemConfigs(ctx context.Context, configRepo repository.SystemC
 			ConfigName:  "公司地址",
 			ConfigGroup: "system",
 			Description: "公司/组织地址",
+			Status:      "1",
+			CreatorID:   "system",
+			ModifierID:  "system",
+		},
+		{
+			ConfigKey:   "api_doc_url",
+			ConfigValue: "",
+			ConfigName:  "接口文档地址",
+			ConfigGroup: "system",
+			Description: "API接口文档地址，用于在接口文档页面进行跳转",
 			Status:      "1",
 			CreatorID:   "system",
 			ModifierID:  "system",

@@ -34,6 +34,10 @@ const SMSCodeList = () => import('@/views/pages/sms/SMSCodeList.vue')
 // 菜单管理模块
 const MenuList = () => import('@/views/pages/menu/MenuList.vue')
 
+// 系统运维模块
+const SystemMonitor = () => import('@/views/pages/ops/SystemMonitor.vue')
+const APIDoc = () => import('@/views/pages/ops/APIDoc.vue')
+
 // 系统管理模块
 const SystemConfig = () => import('@/views/pages/system/SystemConfig.vue')
 const SystemLog = () => import('@/views/pages/system/SystemLog.vue')
@@ -167,6 +171,27 @@ const routes: RouteRecordRaw[] = [
                 component: MenuList,
                 meta: {
                     title: '菜单列表',
+                    category: 'system',
+                    requiresAuth: true,
+                },
+            },
+            // ========== 系统运维模块 ==========
+            {
+                path: 'ops/api-doc',
+                name: 'APIDoc',
+                component: APIDoc,
+                meta: {
+                    title: '接口文档',
+                    category: 'system',
+                    requiresAuth: true,
+                },
+            },
+            {
+                path: 'ops/monitor',
+                name: 'SystemMonitor',
+                component: SystemMonitor,
+                meta: {
+                    title: '系统监控',
                     category: 'system',
                     requiresAuth: true,
                 },

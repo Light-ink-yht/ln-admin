@@ -22,7 +22,7 @@ const router = useRouter()
 
 // 路由名称映射（可根据实际路由配置修改）
 const routeNameMap: Record<string, string> = {
-    '/': '工作台',
+    '/': '首页',
     '/dashboard': '仪表盘',
     '/dashboard/workbench': '工作台',
     '/dashboard/analysis': '分析页',
@@ -39,6 +39,14 @@ const routeNameMap: Record<string, string> = {
     '/system': '系统管理',
     '/system/config': '系统配置',
     '/system/log': '操作日志',
+    '/sms': '短信管理',
+    '/sms/template': '短信模板',
+    '/sms/code': '短信验证码',
+    '/menu': '菜单管理',
+    '/menu/list': '菜单列表',
+    '/ops': '系统运维',
+    '/ops/api-doc': '接口文档',
+    '/ops/monitor': '系统监控',
 }
 
 // 将路径段转换为可读名称（将 kebab-case 或 camelCase 转换为中文）
@@ -56,32 +64,55 @@ const formatPathName = (segment: string): string => {
 // 根据当前路由生成面包屑
 const breadcrumbItems = computed(() => {
     const items: Array<{ path: string; breadcrumbName: string }> = []
-    const paths = route.path.split('/').filter(Boolean)
     
-    // 添加首页
-    items.push({
-        path: '/',
-        breadcrumbName: routeNameMap['/'] || '首页',
-    })
-    
-    // 如果路径就是根路径，直接返回
-    if (paths.length === 0) {
+    // 如果路径是根路径，直接返回首页
+    if (route.path === '/' || route.path === '') {
+        items.push({
+            path: '/',
+            breadcrumbName: routeNameMap['/'] || '首页',
+        })
         return items
     }
     
-    // 根据路径层级生成面包屑
-    let currentPath = ''
-    paths.forEach((segment) => {
-        currentPath += `/${segment}`
-        // 优先使用映射，如果没有则使用格式化后的名称
-        const mappedName = routeNameMap[currentPath]
-        const name = mappedName || formatPathName(segment)
+    // 使用路由的matched数组来生成面包屑（更准确）
+    const matched = route.matched.filter((item) => item.meta && item.meta.title)
+    
+    // 如果没有匹配的路由，使用路径解析
+    if (matched.length === 0) {
+        const paths = route.path.split('/').filter(Boolean)
+        let currentPath = ''
         
-        items.push({
-            path: currentPath,
-            breadcrumbName: name,
+        paths.forEach((segment) => {
+            currentPath += `/${segment}`
+            const mappedName = routeNameMap[currentPath]
+            const name = mappedName || formatPathName(segment)
+            
+            items.push({
+                path: currentPath,
+                breadcrumbName: name,
+            })
         })
-    })
+    } else {
+        // 使用matched生成面包屑
+        matched.forEach((match) => {
+            const path = match.path
+            const title = match.meta?.title as string
+            const name = title || routeNameMap[path] || formatPathName(path.split('/').pop() || '')
+            
+            items.push({
+                path: path === '/' ? '/' : path,
+                breadcrumbName: name,
+            })
+        })
+    }
+    
+    // 确保至少有一个首页
+    if (items.length === 0 || items[0].path !== '/') {
+        items.unshift({
+            path: '/',
+            breadcrumbName: routeNameMap['/'] || '首页',
+        })
+    }
     
     return items
 })
@@ -100,7 +131,7 @@ const handleBreadcrumbClick = (path: string) => {
     align-items: center;
     min-width: 0;
     overflow: hidden;
-    padding-left: 24px; /* 与 PageTabs 的 padding-left 对齐 */
+    padding-left: 24px;
     box-sizing: border-box;
 }
 
@@ -111,15 +142,24 @@ const handleBreadcrumbClick = (path: string) => {
 
 :deep(.ant-breadcrumb-link) {
     color: rgba(0, 0, 0, 0.65);
-    transition: color 0.3s;
+    transition: color 0.3s, transform 0.2s;
+    display: inline-block;
 }
 
 :deep(.ant-breadcrumb-link:hover) {
     color: rgba(0, 0, 0, 0.85);
+    transform: translateY(-1px);
 }
 
 :deep(.ant-breadcrumb-separator) {
-    color: rgba(0, 0, 0, 0.45);
+    color: rgba(0, 0, 0, 0.35);
+    margin: 0 8px;
+    font-size: 12px;
+}
+
+:deep(.ant-breadcrumb-item:last-child span) {
+    color: rgba(0, 0, 0, 0.85);
+    font-weight: 500;
 }
 
 /* 暗色模式 */
@@ -132,13 +172,17 @@ const handleBreadcrumbClick = (path: string) => {
 }
 
 .dark-layout :deep(.ant-breadcrumb-separator) {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.dark-layout :deep(.ant-breadcrumb-item:last-child span) {
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* 移动端优化 */
 @media (max-width: 768px) {
     .header-breadcrumb {
-        display: none; /* 移动端隐藏，因为有侧边栏抽屉 */
+        display: none;
     }
 }
 </style>
