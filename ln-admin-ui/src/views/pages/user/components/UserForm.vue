@@ -2,101 +2,152 @@
     <a-modal
         v-model:open="visible"
         :title="isEdit ? '编辑用户' : '添加用户'"
-        :width="800"
+        :width="900"
         :confirm-loading="loading"
         @ok="handleSubmit"
         @cancel="handleCancel"
+        :styles="{ body: { padding: '24px' } }"
     >
         <a-form
             ref="formRef"
             :model="formData"
             :rules="rules"
-            :label-col="{ span: 6 }"
-            :wrapper-col="{ span: 18 }"
+            layout="vertical"
         >
-            <a-form-item label="手机号" name="phone" v-if="!isEdit">
-                <a-input v-model:value="formData.phone" placeholder="请输入手机号" />
-            </a-form-item>
+            <!-- 头像上传区域 -->
+            <div class="form-header-section">
+                <div class="avatar-upload-card">
+                    <ImageUploadSingle
+                        v-model="formData.avatar"
+                        :max-size="5"
+                        placeholder="上传头像"
+                        preview-alt="用户头像"
+                    />
+                    <div class="avatar-info">
+                        <p class="avatar-tip">支持 JPG、PNG、GIF 格式，大小不超过 5MB</p>
+                    </div>
+                </div>
+            </div>
 
-            <a-form-item label="密码" name="password" v-if="!isEdit">
-                <a-input-password v-model:value="formData.password" placeholder="请输入密码" />
-            </a-form-item>
+            <a-divider style="margin: 24px 0;" />
 
-            <a-form-item label="邮箱" name="email">
-                <a-input v-model:value="formData.email" placeholder="请输入邮箱" />
-            </a-form-item>
+            <!-- 基本信息 -->
+            <div class="form-section">
+                <div class="section-title">
+                    <UserOutlined />
+                    <span>基本信息</span>
+                </div>
+                <a-row :gutter="16">
+                    <a-col :span="12">
+                        <a-form-item label="手机号" name="phone" v-if="!isEdit">
+                            <a-input v-model:value="formData.phone" placeholder="请输入手机号" size="large" />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="密码" name="password" v-if="!isEdit">
+                            <a-input-password v-model:value="formData.password" placeholder="请输入密码" size="large" />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="邮箱" name="email">
+                            <a-input v-model:value="formData.email" placeholder="请输入邮箱" size="large" />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="昵称" name="nickname">
+                            <a-input v-model:value="formData.nickname" placeholder="请输入昵称" size="large" />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="姓名" name="fullName">
+                            <a-input v-model:value="formData.fullName" placeholder="请输入姓名" size="large" />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="性别" name="gender">
+                            <a-select v-model:value="formData.gender" placeholder="请选择性别" size="large">
+                                <a-select-option value="1">男</a-select-option>
+                                <a-select-option value="2">女</a-select-option>
+                                <a-select-option value="3">未知</a-select-option>
+                            </a-select>
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="状态" name="status">
+                            <a-select v-model:value="formData.status" placeholder="请选择状态" size="large">
+                                <a-select-option value="1">启用</a-select-option>
+                                <a-select-option value="2">禁用</a-select-option>
+                            </a-select>
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-form-item label="生日" name="birthday">
+                            <a-date-picker
+                                v-model:value="formData.birthday"
+                                placeholder="请选择生日"
+                                style="width: 100%"
+                                size="large"
+                            />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="24">
+                        <a-form-item label="备注" name="remarks">
+                            <a-textarea
+                                v-model:value="formData.remarks"
+                                placeholder="请输入备注"
+                                :rows="3"
+                            />
+                        </a-form-item>
+                    </a-col>
+                </a-row>
+            </div>
 
-            <a-form-item label="昵称" name="nickname">
-                <a-input v-model:value="formData.nickname" placeholder="请输入昵称" />
-            </a-form-item>
+            <a-divider style="margin: 24px 0;" />
 
-            <a-form-item label="姓名" name="fullName">
-                <a-input v-model:value="formData.fullName" placeholder="请输入姓名" />
-            </a-form-item>
-
-            <a-form-item label="性别" name="gender">
-                <a-select v-model:value="formData.gender" placeholder="请选择性别">
-                    <a-select-option value="1">男</a-select-option>
-                    <a-select-option value="2">女</a-select-option>
-                    <a-select-option value="3">未知</a-select-option>
-                </a-select>
-            </a-form-item>
-
-            <a-form-item label="状态" name="status">
-                <a-select v-model:value="formData.status" placeholder="请选择状态">
-                    <a-select-option value="1">启用</a-select-option>
-                    <a-select-option value="2">禁用</a-select-option>
-                </a-select>
-            </a-form-item>
-
-            <a-form-item label="头像" name="avatar">
-                <a-input v-model:value="formData.avatar" placeholder="请输入头像URL" />
-            </a-form-item>
-
-            <a-form-item label="生日" name="birthday">
-                <a-date-picker
-                    v-model:value="formData.birthday"
-                    placeholder="请选择生日"
-                    style="width: 100%"
-                />
-            </a-form-item>
-
-            <a-form-item label="备注" name="remarks">
-                <a-textarea
-                    v-model:value="formData.remarks"
-                    placeholder="请输入备注"
-                    :rows="3"
-                />
-            </a-form-item>
-
-            <a-form-item label="角色" name="roleIds">
-                <a-select
-                    v-model:value="formData.roleIds"
-                    mode="multiple"
-                    placeholder="请选择角色"
-                    :loading="rolesLoading"
-                    :options="roleOptions"
-                />
-            </a-form-item>
-
-            <!-- 权限授权 -->
-            <a-form-item label="权限授权" v-if="isEdit">
-                <a-button type="primary" @click="handleGrantPermission">
-                    <template #icon>
-                        <SafetyOutlined />
-                    </template>
-                    管理权限
-                </a-button>
-                <span style="margin-left: 8px; color: #8c8c8c; font-size: 12px">
-                    为用户直接分配权限（独立于角色权限）
-                </span>
-            </a-form-item>
+            <!-- 角色和权限 -->
+            <div class="form-section">
+                <div class="section-title">
+                    <SafetyOutlined />
+                    <span>角色权限</span>
+                </div>
+                <a-row :gutter="16">
+                    <a-col :span="24">
+                        <a-form-item label="角色" name="roleIds">
+                            <a-select
+                                v-model:value="formData.roleIds"
+                                mode="multiple"
+                                placeholder="请选择角色"
+                                :loading="rolesLoading"
+                                :options="roleOptions"
+                                size="large"
+                            />
+                        </a-form-item>
+                    </a-col>
+                    <a-col :span="24">
+                        <a-form-item label="权限授权">
+                            <a-button 
+                                type="primary" 
+                                @click="handleGrantPermission"
+                                :disabled="!isEdit && !createdUserId"
+                            >
+                                <template #icon>
+                                    <SafetyOutlined />
+                                </template>
+                                {{ isEdit ? '管理权限' : '分配权限' }}
+                            </a-button>
+                            <span class="form-item-tip">
+                                {{ isEdit ? '为用户直接分配权限（独立于角色权限）' : '创建用户成功后，可以为用户分配权限' }}
+                            </span>
+                        </a-form-item>
+                    </a-col>
+                </a-row>
+            </div>
         </a-form>
 
         <!-- 用户权限授权弹窗 -->
         <UserPermissionGrant
             v-model:open="grantPermissionOpen"
-            :user-id="isEdit && props.user ? props.user.userId : null"
+            :user-id="(isEdit && props.user ? props.user.userId : createdUserId) || null"
             :current-permissions="currentPermissions"
             @success="handleGrantSuccess"
         />
@@ -106,11 +157,12 @@
 <script lang="ts" setup>
 import { ref, reactive, watch, computed, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { SafetyOutlined } from '@ant-design/icons-vue'
+import { SafetyOutlined, UserOutlined } from '@ant-design/icons-vue'
 import type { FormInstance } from 'ant-design-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { userApi, type CreateUserRequest, type UpdateUserRequest, type UserResponse, type RoleInfo, type PermissionInfo } from '@/api/user'
 import { roleApi, type Role } from '@/api/role'
+import { ImageUploadSingle } from '@/components/upload'
 import UserPermissionGrant from './UserPermissionGrant.vue'
 
 interface Props {
@@ -134,6 +186,7 @@ const rolesLoading = ref(false)
 const roleOptions = ref<Array<{ label: string; value: string }>>([])
 const grantPermissionOpen = ref(false)
 const currentPermissions = ref<PermissionInfo[]>([])
+const createdUserId = ref<string | null>(null) // 用于存储新创建的用户ID
 
 const isEdit = computed(() => !!props.user)
 
@@ -267,8 +320,20 @@ const handleSubmit = async () => {
             const response = await userApi.createUser(submitData as CreateUserRequest)
             if (response.code === 200 || response.code === 0) {
                 message.success('创建用户成功')
-                emit('success')
-                handleCancel()
+                // 保存新创建的用户ID（注意后端返回的字段名是 userId）
+                const newUserId = response.data?.userId || null
+                if (newUserId) {
+                    createdUserId.value = newUserId
+                    // 创建成功后，自动打开权限授权弹窗
+                    await nextTick()
+                    grantPermissionOpen.value = true
+                    // 加载用户的权限信息（新用户应该没有权限）
+                    currentPermissions.value = []
+                } else {
+                    // 如果无法获取用户ID，直接关闭并刷新列表
+                    emit('success')
+                    handleCancel()
+                }
             }
         }
     } catch (error: any) {
@@ -284,15 +349,27 @@ const handleSubmit = async () => {
 
 // 处理授权权限
 const handleGrantPermission = () => {
-    grantPermissionOpen.value = true
+    // 编辑模式下，直接打开授权弹窗
+    if (isEdit.value && props.user) {
+        grantPermissionOpen.value = true
+        return
+    }
+    // 添加模式下，如果用户已创建，打开授权弹窗
+    if (createdUserId.value) {
+        grantPermissionOpen.value = true
+        return
+    }
+    // 否则提示用户先创建用户
+    message.warning('请先创建用户，然后再分配权限')
 }
 
 // 授权成功回调
 const handleGrantSuccess = () => {
     grantPermissionOpen.value = false
+    const userId = (isEdit.value && props.user) ? props.user.userId : createdUserId.value
     // 重新加载用户信息和权限
-    if (props.user) {
-        userApi.getUserDetail(props.user.userId).then((response) => {
+    if (userId) {
+        userApi.getUserDetail(userId).then((response) => {
             if (response.code === 200 || response.code === 0) {
                 currentPermissions.value = response.data?.permissions || []
             }
@@ -301,11 +378,19 @@ const handleGrantSuccess = () => {
         })
     }
     message.success('权限授权已更新')
+    // 如果是新创建的用户，授权成功后关闭表单并刷新列表
+    if (!isEdit.value && createdUserId.value) {
+        emit('success')
+        handleCancel()
+    }
 }
+
 
 // 取消
 const handleCancel = () => {
     formRef.value?.resetFields()
+    createdUserId.value = null // 重置创建的用户ID
+    currentPermissions.value = [] // 重置权限列表
     emit('update:open', false)
 }
 
@@ -340,9 +425,75 @@ watch(
 )
 </script>
 
-<style scoped lang="less">
+<style scoped>
+.form-header-section {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.avatar-upload-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+
+.avatar-info {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.avatar-tip {
+    margin: 0;
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+}
+
+.form-section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.85);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.section-title :deep(.anticon) {
+    font-size: 18px;
+    color: #1890ff;
+}
+
+.form-item-tip {
+    margin-left: 12px;
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+}
+
 :deep(.ant-form-item-label > label) {
     font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+}
+
+:deep(.ant-input),
+:deep(.ant-select),
+:deep(.ant-picker) {
+    border-radius: 6px;
+}
+
+:deep(.ant-input:focus),
+:deep(.ant-select-focused .ant-select-selector),
+:deep(.ant-picker-focused) {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 </style>
 

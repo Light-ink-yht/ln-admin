@@ -2,12 +2,58 @@ import type { SearchField } from '../DataList.vue'
 import type { TableColumnsType } from 'ant-design-vue'
 
 /**
+ * 权限分类映射（从 permissionKey 提取分类并转换为中文）
+ */
+const PERMISSION_CATEGORY_MAP: Record<string, string> = {
+    user: '用户管理',
+    role: '角色管理',
+    permission: '权限管理',
+    system: '系统配置',
+    sms: '短信管理',
+    menu: '菜单管理',
+    ops: '系统运维',
+    file: '文件管理',
+}
+
+/**
+ * 从权限标识提取分类
+ * @param permissionKey 权限标识，如 "user:list"
+ * @returns 分类名称，如 "用户管理"
+ */
+export function getPermissionCategory(permissionKey: string): string {
+    if (!permissionKey || !permissionKey.includes(':')) {
+        return '其他'
+    }
+    const category = permissionKey.split(':')[0]
+    return PERMISSION_CATEGORY_MAP[category] || category
+}
+
+/**
+ * 获取所有可用的分类选项
+ */
+export function getPermissionCategoryOptions() {
+    const categories = Object.values(PERMISSION_CATEGORY_MAP)
+    return categories.map((label) => ({
+        label,
+        value: label,
+    }))
+}
+
+/**
  * 获取权限搜索字段配置
  * @param customFields 自定义字段，可以覆盖或扩展默认字段
  * @returns 搜索字段配置数组
  */
 export function getPermissionSearchFields(customFields?: Partial<SearchField>[]): SearchField[] {
     const defaultFields: SearchField[] = [
+        {
+            key: 'category',
+            label: '分类',
+            type: 'select',
+            placeholder: '请选择分类',
+            width: '140px',
+            options: getPermissionCategoryOptions(),
+        },
         {
             key: 'permission_key',
             label: '权限标识',
@@ -99,6 +145,13 @@ export function getPermissionColumns(options?: {
     } = options || {}
 
     const columns: TableColumnsType = [
+        {
+            title: '分类',
+            key: 'category',
+            width: 120,
+            align: 'center',
+            fixed: 'left',
+        },
         {
             title: '权限标识',
             dataIndex: 'permissionKey',

@@ -26,6 +26,12 @@
         <template #column-icon="{ record }">
             <UserText :value="record.icon || '-'" />
         </template>
+        <template #column-permission="{ record }">
+            <a-tag v-if="record.permission" color="blue">
+                {{ record.permission }}
+            </a-tag>
+            <span v-else style="color: #8c8c8c;">无需权限</span>
+        </template>
         <template #column-created_at="{ record }">
             <UserText :value="record.created_at" />
         </template>

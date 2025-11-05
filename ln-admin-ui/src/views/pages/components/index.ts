@@ -37,6 +37,8 @@ export {
 export {
     getPermissionSearchFields,
     getPermissionColumns,
+    getPermissionCategory,
+    getPermissionCategoryOptions,
     PERMISSION_STATUS_OPTIONS,
     METHOD_OPTIONS,
     mapPermissionData,

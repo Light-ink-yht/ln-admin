@@ -38,8 +38,12 @@
                     >
                         <a-collapse-panel
                             :key="category"
-                            :header="getCategoryName(category)"
                         >
+                            <template #header>
+                                <a-tag :color="getCategoryColor(category)" style="margin-right: 8px;">
+                                    {{ category }}
+                                </a-tag>
+                            </template>
                             <template #extra>
                                 <span style="color: #8c8c8c; font-size: 12px">
                                     {{ perms.length }} 个
@@ -87,6 +91,7 @@ import { SearchOutlined } from '@ant-design/icons-vue'
 import type { TableColumnsType } from 'ant-design-vue'
 import { permissionApi, type Permission } from '@/api/permission'
 import { userApi, type PermissionInfo } from '@/api/user'
+import { getPermissionCategory } from '@/views/pages/components'
 
 interface Props {
     open: boolean
@@ -163,14 +168,20 @@ const columns: TableColumnsType = [
     },
 ]
 
-// 权限分类映射
-const categoryMap: Record<string, string> = {
-    '/user': '用户管理',
-    '/role': '角色管理',
-    '/permission': '权限管理',
-    '/menu': '菜单管理',
-    '/workbench': '工作台管理',
-    '/system': '系统管理',
+// 获取分类颜色（与权限列表保持一致）
+const getCategoryColor = (category: string): string => {
+    const colorMap: Record<string, string> = {
+        '用户管理': 'blue',
+        '角色管理': 'green',
+        '权限管理': 'orange',
+        '系统配置': 'purple',
+        '短信管理': 'cyan',
+        '菜单管理': 'magenta',
+        '系统运维': 'red',
+        '文件管理': 'geekblue',
+        '其他': 'default',
+    }
+    return colorMap[category] || 'default'
 }
 
 // 过滤权限
@@ -187,7 +198,7 @@ const filteredPermissions = computed(() => {
     )
 })
 
-// 按分类组织过滤后的权限
+// 按分类组织过滤后的权限（与权限列表保持一致）
 const groupedFilteredPermissions = computed(() => {
     if (!filteredPermissions.value || filteredPermissions.value.length === 0) {
         return {}
@@ -196,13 +207,8 @@ const groupedFilteredPermissions = computed(() => {
     const grouped: Record<string, Permission[]> = {}
     
     filteredPermissions.value.forEach((permission) => {
-        // 从资源路径提取分类（例如：/api/user/list -> user）
-        const path = permission.resourcePath || ''
-        // 移除 /api 前缀
-        const cleanPath = path.replace(/^\/api/, '')
-        // 提取第一级路径作为分类
-        const parts = cleanPath.split('/').filter((p) => p)
-        const category = parts.length > 0 ? '/' + parts[0] : '/other'
+        // 优先使用后端返回的 category 字段，如果没有则从 permissionKey 提取
+        const category = permission.category || getPermissionCategory(permission.permissionKey || '')
         
         if (!grouped[category]) {
             grouped[category] = []
@@ -212,11 +218,6 @@ const groupedFilteredPermissions = computed(() => {
 
     return grouped
 })
-
-// 获取分类名称
-const getCategoryName = (category: string): string => {
-    return categoryMap[category] || category || '其他'
-}
 
 // 已选择的权限
 const selectedPermissions = computed(() => {
@@ -348,6 +349,8 @@ watch(
         padding: 12px 16px;
         font-weight: 500;
         color: #262626;
+        display: flex;
+        align-items: center;
     }
 
     :deep(.ant-collapse-content) {

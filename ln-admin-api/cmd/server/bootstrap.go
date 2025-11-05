@@ -90,6 +90,7 @@ func (b *Bootstrap) MigrateDatabase() error {
 		{&entity.AA09{}, (&entity.AA09{}).GetTableComment, "AA09"},
 		{&entity.AA10File{}, (&entity.AA10File{}).GetTableComment, "AA10"}, // 文件表
 		{&entity.AA11{}, (&entity.AA11{}).GetTableComment, "AA11"},         // S3配置表
+		{&entity.AA12{}, (&entity.AA12{}).GetTableComment, "AA12"},         // 角色菜单关联表
 	}
 
 	// 执行 AutoMigrate

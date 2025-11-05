@@ -65,8 +65,12 @@
             <a-form-item label="权限标识" name="permission">
                 <a-input
                     v-model:value="formData.permission"
-                    placeholder="请输入权限标识，如：/menu/list:GET"
+                    placeholder="可选：权限标识（已废弃，菜单通过角色授权）"
+                    disabled
                 />
+                <div style="margin-top: 4px; font-size: 12px; color: #8c8c8c;">
+                    菜单现在通过角色授权管理，请在角色列表中选择"菜单授权"为角色分配菜单
+                </div>
             </a-form-item>
             <a-form-item label="状态" name="status" v-if="isEdit">
                 <a-radio-group v-model:value="formData.status">
@@ -144,6 +148,7 @@ const loadParentMenus = async () => {
         parentMenuOptions.value = []
     }
 }
+
 
 // 监听 open 变化
 watch(

@@ -11,8 +11,6 @@ import (
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
 	"github.com/google/uuid"
-
-	cb "github.com/casbin/casbin/v2"
 )
 
 var (
@@ -24,13 +22,22 @@ var (
 type MenuService struct {
 	permissionService *PermissionService
 	menuRepo          repository.MenuRepository
+	permissionRepo    repository.PermissionRepository
+	roleMenuRepo      repository.RoleMenuRepository
 }
 
 // NewMenuService 创建菜单服务
-func NewMenuService(permissionService *PermissionService, menuRepo repository.MenuRepository) *MenuService {
+func NewMenuService(
+	permissionService *PermissionService,
+	menuRepo repository.MenuRepository,
+	permissionRepo repository.PermissionRepository,
+	roleMenuRepo repository.RoleMenuRepository,
+) *MenuService {
 	return &MenuService{
 		permissionService: permissionService,
 		menuRepo:          menuRepo,
+		permissionRepo:    permissionRepo,
+		roleMenuRepo:      roleMenuRepo,
 	}
 }
 
@@ -190,12 +197,13 @@ func (s *MenuService) GetSidebarMenus(ctx context.Context, userID string) ([]dto
 
 	// 如果数据库中没有菜单，使用默认菜单；否则使用数据库中的菜单
 	var allMenus []dto.MenuItem
+	var menuIDMap map[string]string = make(map[string]string)
 	if len(dbMenus) == 0 {
 		// 数据库查询不到，使用默认菜单
 		allMenus = s.getAllMenus()
 	} else {
 		// 数据库中有菜单，优先使用数据库菜单
-		allMenus = s.convertMenusToDTO(dbMenus)
+		allMenus = s.convertMenusToDTOWithID(dbMenus, menuIDMap)
 	}
 
 	// 获取Casbin Enforcer
@@ -217,19 +225,31 @@ func (s *MenuService) GetSidebarMenus(ctx context.Context, userID string) ([]dto
 		return allMenus, nil
 	}
 
-	// 根据权限过滤菜单
-	filteredMenus := s.filterMenusByPermission(ctx, allMenus, userID, enforcer)
+	// 根据角色过滤菜单
+	filteredMenus := s.filterMenusByRole(ctx, allMenus, roles)
 
 	return filteredMenus, nil
 }
 
 // convertMenusToDTO 将菜单实体转换为DTO
 func (s *MenuService) convertMenusToDTO(menus []*entity.Menu) []dto.MenuItem {
+	return s.convertMenusToDTOWithID(menus, nil)
+}
+
+// convertMenusToDTOWithID 将菜单实体转换为DTO，并建立MenuID到MenuKey的映射
+func (s *MenuService) convertMenusToDTOWithID(menus []*entity.Menu, menuIDMap map[string]string) []dto.MenuItem {
+	if menuIDMap == nil {
+		menuIDMap = make(map[string]string)
+	}
+
 	result := make([]dto.MenuItem, len(menus))
 	for i, menu := range menus {
+		// 建立MenuID到MenuKey的映射
+		menuIDMap[menu.MenuID] = menu.MenuKey
+
 		children := make([]dto.MenuItem, 0)
 		if menu.Children != nil && len(menu.Children) > 0 {
-			children = s.convertMenusToDTO(menu.Children)
+			children = s.convertMenusToDTOWithID(menu.Children, menuIDMap)
 		}
 		result[i] = dto.MenuItem{
 			Key:        menu.MenuKey,
@@ -244,56 +264,61 @@ func (s *MenuService) convertMenusToDTO(menus []*entity.Menu) []dto.MenuItem {
 	return result
 }
 
-// filterMenusByPermission 根据权限过滤菜单
-func (s *MenuService) filterMenusByPermission(
+// filterMenusByRole 根据角色过滤菜单
+func (s *MenuService) filterMenusByRole(
 	ctx context.Context,
 	menus []dto.MenuItem,
-	userID string,
-	enforcer *cb.Enforcer,
+	roles []*entity.Role,
 ) []dto.MenuItem {
+	// 获取所有角色拥有的菜单ID集合
+	roleMenuIDs := make(map[string]bool)
+	for _, role := range roles {
+		menuIDs, err := s.roleMenuRepo.FindMenusByRoleID(ctx, role.RoleID)
+		if err == nil {
+			for _, menuID := range menuIDs {
+				roleMenuIDs[menuID] = true
+			}
+		}
+	}
+
+	// 如果没有分配任何菜单，返回空列表
+	if len(roleMenuIDs) == 0 {
+		return []dto.MenuItem{}
+	}
+
+	// 建立菜单Key到MenuID的反向映射（通过查找菜单实体）
+	menuKeyToID := make(map[string]string)
+	allDBMenus, _ := s.menuRepo.FindAll(ctx)
+	for _, menu := range allDBMenus {
+		menuKeyToID[menu.MenuKey] = menu.MenuID
+	}
+
 	filtered := make([]dto.MenuItem, 0)
 
 	for _, menu := range menus {
-		// 如果有子菜单，递归过滤子菜单
-		if len(menu.Children) > 0 {
-			filteredChildren := s.filterMenusByPermission(ctx, menu.Children, userID, enforcer)
-			if len(filteredChildren) > 0 {
-				menu.Children = filteredChildren
-				filtered = append(filtered, menu)
-			}
-		} else {
-			// 如果没有子菜单，检查当前菜单项的权限
-			if menu.Permission != "" {
-				// 解析权限：格式为 "路径:方法"
-				parts := splitPermission(menu.Permission)
-				if len(parts) == 2 {
-					resourcePath := parts[0]
-					method := parts[1]
+		// 通过菜单Key查找MenuID
+		menuID, exists := menuKeyToID[menu.Key]
+		if !exists {
+			// 如果找不到菜单实体（可能是默认菜单），跳过
+			continue
+		}
 
-					// 检查用户是否有权限
-					allowed, err := enforcer.Enforce(userID, resourcePath, method)
-					if err == nil && allowed {
-						filtered = append(filtered, menu)
-					}
+		// 检查角色的菜单ID集合中是否包含当前菜单
+		if roleMenuIDs[menuID] {
+			// 如果有子菜单，递归过滤子菜单
+			if len(menu.Children) > 0 {
+				filteredChildren := s.filterMenusByRole(ctx, menu.Children, roles)
+				if len(filteredChildren) > 0 {
+					menu.Children = filteredChildren
+					filtered = append(filtered, menu)
 				}
 			} else {
-				// 没有权限要求，直接添加
 				filtered = append(filtered, menu)
 			}
 		}
 	}
 
 	return filtered
-}
-
-// splitPermission 分割权限字符串 "路径:方法" -> ["路径", "方法"]
-func splitPermission(permission string) []string {
-	for i := 0; i < len(permission); i++ {
-		if permission[i] == ':' {
-			return []string{permission[:i], permission[i+1:]}
-		}
-	}
-	return []string{permission}
 }
 
 // GetUserMenus 获取用户下拉菜单
@@ -553,4 +578,19 @@ func (s *MenuService) ConvertMenuToDTO(menu *entity.Menu) dto.MenuResponse {
 		ModifierID:  menu.ModifierID,
 		Children:    children,
 	}
+}
+
+// AssignMenuToRole 为角色分配菜单
+func (s *MenuService) AssignMenuToRole(ctx context.Context, roleID, menuID string) error {
+	return s.roleMenuRepo.AssignMenu(ctx, roleID, menuID)
+}
+
+// DeleteRoleMenus 删除角色的所有菜单关联
+func (s *MenuService) DeleteRoleMenus(ctx context.Context, roleID string) error {
+	return s.roleMenuRepo.DeleteByRoleID(ctx, roleID)
+}
+
+// GetRoleMenus 获取角色的菜单ID列表
+func (s *MenuService) GetRoleMenus(ctx context.Context, roleID string) ([]string, error) {
+	return s.roleMenuRepo.FindMenusByRoleID(ctx, roleID)
 }

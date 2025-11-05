@@ -79,6 +79,13 @@ export function getMenuColumns(): TableColumnsType {
             align: 'center',
         },
         {
+            title: '权限标识',
+            key: 'permission',
+            dataIndex: 'permission',
+            width: 180,
+            align: 'center',
+        },
+        {
             title: '状态',
             key: 'status',
             dataIndex: 'status',

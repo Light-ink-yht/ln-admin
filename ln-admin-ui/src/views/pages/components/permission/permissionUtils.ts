@@ -15,6 +15,7 @@ export function mapPermissionData(permission: any): Permission {
         method: permission.method || '',
         description: permission.description || '',
         status: permission.status || '',
+        category: permission.category || '',
         creatorId: permission.creatorId || permission.creator_id || '',
         creatorName: permission.creatorName || permission.creator_name || '',
         modifierId: permission.modifierId || permission.modifier_id || '',

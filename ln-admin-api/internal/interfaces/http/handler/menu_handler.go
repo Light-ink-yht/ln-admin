@@ -490,3 +490,118 @@ func (h *MenuHandler) GetMenuTree(c *gin.Context) {
 
 	response.SuccessWithMessage(c, "获取菜单树成功", menuResps)
 }
+
+// GrantRoleMenus 为角色分配菜单
+// @Summary      为角色分配菜单
+// @Description  超级管理员可以为角色分配菜单，控制不同角色可以访问的页面
+// @Tags         菜单相关
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        roleId  path      string                   true  "角色ID"
+// @Param        request body      dto.GrantRoleMenusRequest true  "分配菜单请求"
+// @Success      200     {object}  response.Response        "成功"
+// @Failure      400     {object}  response.Response        "请求参数错误"
+// @Failure      403     {object}  response.Response        "权限不足"
+// @Failure      500     {object}  response.Response        "服务器错误"
+// @Router       /menu/role/{roleId}/menus [post]
+func (h *MenuHandler) GrantRoleMenus(c *gin.Context) {
+	roleID := c.Param("roleId")
+	if roleID == "" {
+		response.BadRequest(c, "角色ID不能为空")
+		return
+	}
+
+	var req dto.GrantRoleMenusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		logger.Warn("为角色分配菜单失败",
+			zap.String("操作", "为角色分配菜单"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "请求参数验证失败"),
+			zap.String("角色ID", roleID),
+			zap.String("ip", c.ClientIP()),
+			zap.Error(err))
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	ctx := context.Background()
+
+	// 删除角色的所有菜单关联
+	if err := h.menuService.DeleteRoleMenus(ctx, roleID); err != nil {
+		logger.Error("为角色分配菜单失败",
+			zap.String("操作", "为角色分配菜单"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", "删除旧菜单关联失败"),
+			zap.String("角色ID", roleID),
+			zap.String("ip", c.ClientIP()),
+			zap.Error(err))
+		response.InternalError(c, "分配菜单失败")
+		return
+	}
+
+	// 为角色分配新菜单
+	for _, menuID := range req.MenuIDs {
+		if err := h.menuService.AssignMenuToRole(ctx, roleID, menuID); err != nil {
+			logger.Error("为角色分配菜单失败",
+				zap.String("操作", "为角色分配菜单"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "分配菜单失败"),
+				zap.String("角色ID", roleID),
+				zap.String("菜单ID", menuID),
+				zap.String("ip", c.ClientIP()),
+				zap.Error(err))
+			response.InternalError(c, "分配菜单失败")
+			return
+		}
+	}
+
+	logger.Info("为角色分配菜单成功",
+		zap.String("操作", "为角色分配菜单"),
+		zap.String("结果", "成功"),
+		zap.String("角色ID", roleID),
+		zap.Int("菜单数量", len(req.MenuIDs)),
+		zap.String("ip", c.ClientIP()))
+
+	response.SuccessWithMessage(c, "分配菜单成功", nil)
+}
+
+// GetRoleMenus 获取角色的菜单列表
+// @Summary      获取角色的菜单列表
+// @Description  获取指定角色已分配的菜单ID列表
+// @Tags         菜单相关
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        roleId  path      string  true  "角色ID"
+// @Success      200     {object}  response.Response{data=dto.GetRoleMenusResponse}  "成功"
+// @Failure      400     {object}  response.Response  "请求参数错误"
+// @Failure      403     {object}  response.Response  "权限不足"
+// @Failure      500     {object}  response.Response  "服务器错误"
+// @Router       /menu/role/{roleId}/menus [get]
+func (h *MenuHandler) GetRoleMenus(c *gin.Context) {
+	roleID := c.Param("roleId")
+	if roleID == "" {
+		response.BadRequest(c, "角色ID不能为空")
+		return
+	}
+
+	ctx := context.Background()
+
+	menuIDs, err := h.menuService.GetRoleMenus(ctx, roleID)
+	if err != nil {
+		logger.Error("获取角色菜单失败",
+			zap.String("操作", "获取角色菜单"),
+			zap.String("结果", "失败"),
+			zap.String("失败原因", err.Error()),
+			zap.String("角色ID", roleID),
+			zap.String("ip", c.ClientIP()),
+			zap.Error(err))
+		response.InternalError(c, "获取角色菜单失败")
+		return
+	}
+
+	response.SuccessWithMessage(c, "获取角色菜单成功", dto.GetRoleMenusResponse{
+		MenuIDs: menuIDs,
+	})
+}

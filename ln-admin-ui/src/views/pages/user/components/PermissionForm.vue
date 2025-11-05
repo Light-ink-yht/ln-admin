@@ -36,6 +36,20 @@
                 </a-select>
             </a-form-item>
 
+            <a-form-item label="分类" name="category">
+                <a-select v-model:value="formData.category" placeholder="请选择分类" allow-clear>
+                    <a-select-option value="用户管理">用户管理</a-select-option>
+                    <a-select-option value="角色管理">角色管理</a-select-option>
+                    <a-select-option value="权限管理">权限管理</a-select-option>
+                    <a-select-option value="系统配置">系统配置</a-select-option>
+                    <a-select-option value="短信管理">短信管理</a-select-option>
+                    <a-select-option value="菜单管理">菜单管理</a-select-option>
+                    <a-select-option value="系统运维">系统运维</a-select-option>
+                    <a-select-option value="文件管理">文件管理</a-select-option>
+                    <a-select-option value="其他">其他</a-select-option>
+                </a-select>
+            </a-form-item>
+
             <a-form-item label="权限描述" name="description">
                 <a-textarea v-model:value="formData.description" placeholder="请输入权限描述" :rows="3" />
             </a-form-item>
@@ -76,6 +90,7 @@ const formData = reactive<CreatePermissionRequest & UpdatePermissionRequest>({
     method: 'GET',
     description: '',
     status: '1', // Default to enabled
+    category: '',
 })
 
 const rules = computed(() => ({
@@ -99,6 +114,7 @@ const initFormData = () => {
         formData.method = props.permission.method || 'GET'
         formData.description = props.permission.description || ''
         formData.status = props.permission.status || '1'
+        formData.category = props.permission.category || ''
     } else {
         // 添加模式
         formData.permissionKey = ''
@@ -107,6 +123,7 @@ const initFormData = () => {
         formData.method = 'GET'
         formData.description = ''
         formData.status = '1'
+        formData.category = ''
     }
 }
 
@@ -122,6 +139,7 @@ const handleSubmit = async () => {
             method: formData.method,
             description: formData.description || undefined,
             status: formData.status,
+            category: formData.category || undefined,
         }
 
         if (isEdit.value && props.permission) {

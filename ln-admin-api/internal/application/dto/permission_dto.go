@@ -9,6 +9,7 @@ type PermissionListRequest struct {
 	ResourcePath   string `form:"resource_path"`
 	Method         string `form:"method"`
 	Status         string `form:"status"`
+	Category       string `form:"category"`
 }
 
 // PermissionResponse 权限响应
@@ -24,6 +25,7 @@ type PermissionResponse struct {
 	Method         string  `json:"method"`
 	Description    string  `json:"description"`
 	Status         string  `json:"status"`
+	Category       string  `json:"category"`
 	CreatorID      string  `json:"creatorId,omitempty"`
 	CreatorName    string  `json:"creatorName,omitempty"`
 	ModifierID     string  `json:"modifierId,omitempty"`
@@ -38,6 +40,7 @@ type CreatePermissionRequest struct {
 	Method         string `json:"method" binding:"required,oneof=GET POST PUT DELETE PATCH"`
 	Description    string `json:"description,omitempty"`
 	Status         string `json:"status" binding:"omitempty,oneof=1 2"`
+	Category       string `json:"category" binding:"omitempty,max=50"`
 }
 
 // UpdatePermissionRequest 更新权限请求
@@ -47,4 +50,5 @@ type UpdatePermissionRequest struct {
 	Method         *string `json:"method,omitempty" binding:"omitempty,oneof=GET POST PUT DELETE PATCH"`
 	Description    *string `json:"description,omitempty"`
 	Status         *string `json:"status,omitempty" binding:"omitempty,oneof=1 2"`
+	Category       *string `json:"category,omitempty" binding:"omitempty,max=50"`
 }

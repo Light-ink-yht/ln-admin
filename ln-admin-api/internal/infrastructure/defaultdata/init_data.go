@@ -119,6 +119,28 @@ func initDefaultRoles(ctx context.Context, roleRepo repository.RoleRepository) e
 	return nil
 }
 
+// getPermissionCategory 根据权限标识提取分类
+func getPermissionCategory(permissionKey string) string {
+	if !strings.Contains(permissionKey, ":") {
+		return "其他"
+	}
+	category := strings.Split(permissionKey, ":")[0]
+	categoryMap := map[string]string{
+		"user":       "用户管理",
+		"role":       "角色管理",
+		"permission": "权限管理",
+		"system":     "系统配置",
+		"sms":        "短信管理",
+		"menu":       "菜单管理",
+		"ops":        "系统运维",
+		"file":       "文件管理",
+	}
+	if cat, ok := categoryMap[category]; ok {
+		return cat
+	}
+	return "其他"
+}
+
 // initDefaultPermissions 初始化默认权限
 func initDefaultPermissions(ctx context.Context, permissionRepo repository.PermissionRepository) error {
 	defaultPermissions := []*entity.Permission{
@@ -131,6 +153,7 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 			Method:         "GET",
 			Description:    "查看用户列表",
 			Status:         "1",
+			Category:       getPermissionCategory("user:list"),
 			CreatorID:      "system",
 			ModifierID:     "system",
 		},
@@ -607,6 +630,10 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 	}
 
 	for _, permission := range defaultPermissions {
+		// 如果没有设置分类，根据 permissionKey 自动设置
+		if permission.Category == "" {
+			permission.Category = getPermissionCategory(permission.PermissionKey)
+		}
 		// 检查权限是否已存在
 		existing, err := permissionRepo.FindByKey(ctx, permission.PermissionKey)
 		if err != nil {
@@ -621,6 +648,14 @@ func initDefaultPermissions(ctx context.Context, permissionRepo repository.Permi
 				}
 			} else {
 				logger.Info("创建默认权限", zap.String("permission", permission.PermissionName))
+			}
+		} else {
+			// 如果权限已存在但分类为空，更新分类
+			if existing.Category == "" {
+				existing.Category = getPermissionCategory(permission.PermissionKey)
+				if err := permissionRepo.Update(ctx, existing); err != nil {
+					logger.Warn("更新权限分类失败", zap.String("permission", permission.PermissionName), zap.Error(err))
+				}
 			}
 		}
 	}

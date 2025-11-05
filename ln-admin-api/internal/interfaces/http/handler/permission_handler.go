@@ -151,6 +151,9 @@ func (h *PermissionHandler) ListPermissions(c *gin.Context) {
 	if req.Status != "" {
 		conditions["status"] = req.Status
 	}
+	if req.Category != "" {
+		conditions["category"] = req.Category
+	}
 
 	// 调用服务
 	permissions, total, err := h.permissionService.GetPermissionList(c.Request.Context(), page, pageSize, conditions)
@@ -359,6 +362,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		Method:         req.Method,
 		Description:    req.Description,
 		Status:         status,
+		Category:       req.Category,
 		CreatorID:      creatorID,
 		ModifierID:     creatorID,
 	}
@@ -519,6 +523,9 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 	}
 	if req.Status != nil {
 		existingPermission.Status = *req.Status
+	}
+	if req.Category != nil {
+		existingPermission.Category = *req.Category
 	}
 	existingPermission.ModifierID = modifierID
 
@@ -793,6 +800,7 @@ func (h *PermissionHandler) toPermissionResponse(permission *entity.Permission, 
 		Method:         permission.Method,
 		Description:    permission.Description,
 		Status:         permission.Status,
+		Category:       permission.Category,
 		CreatorID:      permission.CreatorID,
 		CreatorName:    creatorName,
 		ModifierID:     permission.ModifierID,

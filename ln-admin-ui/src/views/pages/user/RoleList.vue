@@ -52,6 +52,13 @@
         v-model:open="roleDetailOpen"
         :role-id="currentRoleId"
     />
+
+    <!-- 角色菜单授权弹窗 -->
+    <RoleMenuGrant
+        v-model:open="roleMenuGrantOpen"
+        :role-id="currentRoleId"
+        @success="handleMenuGrantSuccess"
+    />
 </template>
 
 <script lang="ts" setup>
@@ -73,6 +80,7 @@ import {
 import { roleApi, type Role } from '@/api/role'
 import RoleForm from './components/RoleForm.vue'
 import RoleDetail from './components/RoleDetail.vue'
+import RoleMenuGrant from './components/RoleMenuGrant.vue'
 
 // 组件引用
 const dataListRef = ref<InstanceType<typeof DataList>>()
@@ -82,6 +90,7 @@ const permissionDenied = ref(false)
 // 组件状态
 const roleFormOpen = ref(false)
 const roleDetailOpen = ref(false)
+const roleMenuGrantOpen = ref(false)
 const currentRole = ref<Role | null>(null)
 const currentRoleId = ref<string | null>(null)
 
@@ -157,6 +166,15 @@ const actions: ActionButton[] = [
         },
     },
     {
+        key: 'menu-grant',
+        label: '菜单授权',
+        type: 'link',
+        onClick: (record: Role) => {
+            currentRoleId.value = record.roleId
+            roleMenuGrantOpen.value = true
+        },
+    },
+    {
         key: 'delete',
         label: '删除',
         type: 'link',
@@ -177,5 +195,11 @@ const actions: ActionButton[] = [
 // 角色操作成功回调
 const handleFormSuccess = () => {
     dataListRef.value?.refresh()
+}
+
+// 菜单授权成功回调
+const handleMenuGrantSuccess = () => {
+    roleMenuGrantOpen.value = false
+    message.success('菜单授权已更新')
 }
 </script>

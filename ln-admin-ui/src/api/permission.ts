@@ -12,6 +12,7 @@ export interface Permission {
     method: string
     description?: string
     status?: string
+    category?: string
     creatorId?: string
     creatorName?: string
     modifierId?: string
@@ -32,6 +33,7 @@ export interface PermissionListParams {
     resource_path?: string
     method?: string
     status?: string
+    category?: string
 }
 
 /**
@@ -54,6 +56,7 @@ export interface CreatePermissionRequest {
     method: string
     description?: string
     status?: string
+    category?: string
 }
 
 /**
@@ -65,6 +68,7 @@ export interface UpdatePermissionRequest {
     method?: string
     description?: string
     status?: string
+    category?: string
 }
 
 /**

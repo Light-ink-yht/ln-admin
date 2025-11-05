@@ -20,7 +20,6 @@
         </div>
 
         <a-card :bordered="false" class="page-card">
-
             <a-spin :spinning="loading">
                 <div v-if="systemConfigs && systemConfigs.length > 0" class="config-content">
                     <!-- 基本信息卡片 -->
@@ -32,6 +31,7 @@
                             </div>
                             <a-button
                                 type="primary"
+                                size="large"
                                 :loading="savingGroup['basic']"
                                 @click="handleSaveGroup('basic')"
                             >
@@ -41,30 +41,129 @@
                                 保存本组
                             </a-button>
                         </div>
-                        <div class="config-grid">
-                            <div class="config-item" v-for="config in basicConfigs" :key="config.configKey">
+                        
+                        <!-- 第一行：网站名称 -->
+                        <div class="config-row">
+                            <div class="config-item config-item-full">
                                 <div class="config-label">
-                                    <span class="label-text">{{ config.configName }}</span>
-                                    <a-tag v-if="config.status === '1'" color="success" size="small">启用</a-tag>
+                                    <span class="label-text">网站名称</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_name')?.status === '1'" color="success" size="small">启用</a-tag>
                                     <a-tag v-else color="error" size="small">禁用</a-tag>
                                 </div>
                                 <a-input
-                                    v-if="!isLongText(config.configKey)"
-                                    v-model:value="formData[config.configKey]"
-                                    :placeholder="'请输入' + config.configName"
+                                    v-model:value="formData.site_name"
+                                    placeholder="请输入网站名称"
                                     size="large"
                                     allow-clear
                                     class="config-input"
                                 />
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_name')?.description }}</div>
+                            </div>
+                        </div>
+
+                        <!-- 第二行：网站LOGO和图标 -->
+                        <div class="config-row">
+                            <div class="config-item">
+                                <div class="config-label">
+                                    <span class="label-text">网站LOGO</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_logo')?.status === '1'" color="success" size="small">启用</a-tag>
+                                    <a-tag v-else color="error" size="small">禁用</a-tag>
+                                </div>
+                                <ImageUploadSingle
+                                    v-model="formData.site_logo"
+                                    :max-size="5"
+                                    placeholder="上传LOGO"
+                                    preview-alt="网站LOGO"
+                                />
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_logo')?.description }}</div>
+                            </div>
+
+                            <div class="config-item">
+                                <div class="config-label">
+                                    <span class="label-text">网站图标</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_favicon')?.status === '1'" color="success" size="small">启用</a-tag>
+                                    <a-tag v-else color="error" size="small">禁用</a-tag>
+                                </div>
+                                <ImageUploadSingle
+                                    v-model="formData.site_favicon"
+                                    :max-size="2"
+                                    placeholder="上传图标"
+                                    preview-alt="网站图标"
+                                />
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_favicon')?.description }}</div>
+                            </div>
+                        </div>
+
+                        <!-- 第三行：版权信息 -->
+                        <div class="config-row">
+                            <div class="config-item config-item-full">
+                                <div class="config-label">
+                                    <span class="label-text">版权信息</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_copyright')?.status === '1'" color="success" size="small">启用</a-tag>
+                                    <a-tag v-else color="error" size="small">禁用</a-tag>
+                                </div>
                                 <a-textarea
-                                    v-else
-                                    v-model:value="formData[config.configKey]"
-                                    :placeholder="'请输入' + config.configName"
+                                    v-model:value="formData.site_copyright"
+                                    placeholder="请输入版权信息"
                                     :rows="3"
                                     allow-clear
                                     class="config-input"
                                 />
-                                <div class="config-desc">{{ config.description }}</div>
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_copyright')?.description }}</div>
+                            </div>
+                        </div>
+
+                        <!-- 第四行：网站描述和关键词 -->
+                        <div class="config-row">
+                            <div class="config-item">
+                                <div class="config-label">
+                                    <span class="label-text">网站描述</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_description')?.status === '1'" color="success" size="small">启用</a-tag>
+                                    <a-tag v-else color="error" size="small">禁用</a-tag>
+                                </div>
+                                <a-textarea
+                                    v-model:value="formData.site_description"
+                                    placeholder="请输入网站描述"
+                                    :rows="3"
+                                    allow-clear
+                                    class="config-input"
+                                />
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_description')?.description }}</div>
+                            </div>
+
+                            <div class="config-item">
+                                <div class="config-label">
+                                    <span class="label-text">网站关键词</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_keywords')?.status === '1'" color="success" size="small">启用</a-tag>
+                                    <a-tag v-else color="error" size="small">禁用</a-tag>
+                                </div>
+                                <a-input
+                                    v-model:value="formData.site_keywords"
+                                    placeholder="请输入网站关键词，多个用逗号分隔"
+                                    size="large"
+                                    allow-clear
+                                    class="config-input"
+                                />
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_keywords')?.description }}</div>
+                            </div>
+                        </div>
+
+                        <!-- 第五行：备案号 -->
+                        <div class="config-row">
+                            <div class="config-item config-item-full">
+                                <div class="config-label">
+                                    <span class="label-text">备案号</span>
+                                    <a-tag v-if="basicConfigs.find(c => c.configKey === 'site_beian')?.status === '1'" color="success" size="small">启用</a-tag>
+                                    <a-tag v-else color="error" size="small">禁用</a-tag>
+                                </div>
+                                <a-input
+                                    v-model:value="formData.site_beian"
+                                    placeholder="请输入备案号"
+                                    size="large"
+                                    allow-clear
+                                    class="config-input"
+                                />
+                                <div class="config-desc">{{ basicConfigs.find(c => c.configKey === 'site_beian')?.description }}</div>
                             </div>
                         </div>
                     </div>
@@ -78,6 +177,7 @@
                             </div>
                             <a-button
                                 type="primary"
+                                size="large"
                                 :loading="savingGroup['contact']"
                                 @click="handleSaveGroup('contact')"
                             >
@@ -87,8 +187,8 @@
                                 保存本组
                             </a-button>
                         </div>
-                        <div class="config-grid">
-                            <div class="config-item" v-for="config in contactConfigs" :key="config.configKey">
+                        <div class="config-row">
+                            <div class="config-item" v-for="config in contactConfigs" :key="config.configKey" :class="{ 'config-item-full': isLongText(config.configKey) }">
                                 <div class="config-label">
                                     <span class="label-text">{{ config.configName }}</span>
                                     <a-tag v-if="config.status === '1'" color="success" size="small">启用</a-tag>
@@ -244,6 +344,7 @@ import {
 } from '@ant-design/icons-vue'
 import { systemApi, type SystemConfig, type UpdateSystemConfigRequest, type CreateSystemConfigRequest } from '@/api/system'
 import { useSystemConfigStore } from '@/stores/modules/systemConfig'
+import { ImageUploadSingle } from '@/components/upload'
 
 // 基本信息配置键
 const basicConfigKeys = [
@@ -267,7 +368,6 @@ const editModalOpen = ref(false)
 const editingConfig = ref<SystemConfig | null>(null)
 const formData = reactive<Record<string, string>>({})
 const systemConfigStore = useSystemConfigStore()
-
 const editForm = ref<CreateSystemConfigRequest & { configKey: string; configName: string; configGroup: string; description?: string; status?: string }>({
     configKey: '',
     configName: '',
@@ -290,6 +390,7 @@ const isLongText = (key: string): boolean => {
     const longTextKeys = ['site_description', 'site_copyright', 'site_address']
     return longTextKeys.includes(key)
 }
+
 
 // 基本信息配置
 const basicConfigs = computed(() => {
@@ -472,13 +573,13 @@ onMounted(() => {
     min-height: 100%;
 
     .page-header-banner {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
         border-radius: 16px;
         padding: 32px 40px;
         margin-bottom: 24px;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 32px rgba(var(--color-primary-rgb, 24, 144, 255), 0.25);
 
         .banner-content {
             position: relative;
@@ -606,6 +707,53 @@ onMounted(() => {
         }
     }
 
+    .logo-preview-section {
+        display: flex;
+        gap: 24px;
+        padding: 24px;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .preview-item {
+        flex: 1;
+        background: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .preview-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(0, 0, 0, 0.85);
+        margin-bottom: 12px;
+    }
+
+    .preview-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 80px;
+        background: #fafafa;
+        border-radius: 8px;
+        padding: 16px;
+    }
+
+    .logo-preview {
+        max-width: 200px;
+        max-height: 60px;
+        object-fit: contain;
+    }
+
+    .favicon-preview {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
+
     .config-content {
         display: flex;
         flex-direction: column;
@@ -646,10 +794,19 @@ onMounted(() => {
             }
         }
 
-        .config-grid {
+        .config-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+
+            @media (max-width: 1200px) {
+                grid-template-columns: 1fr;
+            }
 
             @media (max-width: 768px) {
                 grid-template-columns: 1fr;
@@ -657,105 +814,181 @@ onMounted(() => {
         }
 
         .config-item {
-            background: #fafafa;
-            border-radius: 10px;
-            padding: 20px;
+            background: #fff;
+            border: 1px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 160px;
+            position: relative;
+            overflow: hidden;
+
+            &::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 4px;
+                height: 100%;
+                background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            &:hover {
+                border-color: var(--color-primary);
+                box-shadow: 0 6px 20px rgba(var(--color-primary-rgb, 24, 144, 255), 0.2);
+                transform: translateY(-4px);
+
+                &::before {
+                    opacity: 1;
+                }
+            }
+
+            &.config-item-full {
+                grid-column: 1 / -1;
+            }
+        }
+
+
+        .image-config-wrapper {
+            width: 100%;
             transition: all 0.3s;
             border: 1px solid #e8e8e8;
 
             &:hover {
                 background: #fff;
                 border-color: var(--color-primary);
-                box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+                box-shadow: 0 2px 8px rgba(var(--color-primary-rgb, 24, 144, 255), 0.1);
                 transform: translateY(-2px);
             }
 
-            .config-label {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 12px;
+        .config-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
 
-                .label-text {
-                    font-size: 15px;
-                    font-weight: 500;
-                    color: #262626;
-                }
+            .label-text {
+                font-size: 15px;
+                font-weight: 600;
+                color: #262626;
+            }
+        }
+
+        .config-input {
+            margin-bottom: 8px;
+            border-radius: 6px;
+            transition: all 0.3s;
+
+            &:hover {
+                border-color: var(--color-primary);
             }
 
-            .config-input {
-                margin-bottom: 8px;
-                border-radius: 8px;
-                transition: all 0.3s;
-
-                &:hover {
-                    border-color: var(--color-primary);
-                }
-
-                &:focus,
-                &:focus-within {
-                    border-color: var(--color-primary);
-                    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
-                }
+            &:focus,
+            &:focus-within {
+                border-color: var(--color-primary);
+                box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 24, 144, 255), 0.1);
             }
+        }
 
-            .config-desc {
-                font-size: 12px;
-                color: #8c8c8c;
-                line-height: 1.5;
-                margin-top: 4px;
-            }
+        .config-desc {
+            font-size: 12px;
+            color: #8c8c8c;
+            line-height: 1.6;
+            margin-top: auto;
+            padding-top: 8px;
+        }
         }
     }
 }
 
 /* 深色模式 */
-:deep(.ant-layout-sider-dark),
-.dark-mode {
-    .page-header-banner {
-        background: linear-gradient(135deg, #4a5568 0%, #2d3748 50%, #1a202c 100%);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    }
-
-    .page-card {
-        :deep(.ant-card-body) {
-            background: #1f1f1f;
-        }
-    }
-
-    .config-group {
-        background: #262626;
-        border-color: #434343;
-
-        &:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+body.dark-mode {
+    .system-config-container {
+        .page-header-banner {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
+            box-shadow: 0 8px 32px rgba(var(--color-primary-rgb, 24, 144, 255), 0.3);
         }
 
-        .group-header {
-            border-bottom-color: #434343;
-
-            .group-title {
-                color: rgba(255, 255, 255, 0.85);
+        .page-card {
+            :deep(.ant-card-body) {
+                background: #141414;
             }
         }
 
-        .config-item {
+        .config-group {
             background: #1f1f1f;
-            border-color: #434343;
+            border: 1px solid #434343;
 
             &:hover {
-                background: #2a2a2a;
-                border-color: var(--color-primary);
+                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+                border-color: #595959;
             }
 
-            .config-label {
-                .label-text {
+            .group-header {
+                border-bottom-color: #434343;
+
+                .group-title {
                     color: rgba(255, 255, 255, 0.85);
+
+                    .group-icon {
+                        color: var(--color-primary);
+                    }
                 }
             }
 
-            .config-desc {
-                color: rgba(255, 255, 255, 0.45);
+            .config-item {
+                background: #141414;
+                border-color: #434343;
+
+                &:hover {
+                    background: #1f1f1f;
+                    border-color: var(--color-primary);
+                    box-shadow: 0 6px 20px rgba(var(--color-primary-rgb, 24, 144, 255), 0.15);
+                }
+
+                &::before {
+                    background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
+                }
+
+                .config-label {
+                    border-bottom-color: #434343;
+
+                    .label-text {
+                        color: rgba(255, 255, 255, 0.85);
+                    }
+                }
+
+                .config-desc {
+                    color: rgba(255, 255, 255, 0.45);
+                }
+
+                .config-input {
+                    background: #1f1f1f;
+                    border-color: #434343;
+                    color: rgba(255, 255, 255, 0.85);
+
+                    &:hover {
+                        border-color: var(--color-primary-hover);
+                    }
+
+                    &:focus,
+                    &:focus-within {
+                        border-color: var(--color-primary);
+                        background: #262626;
+                        box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 24, 144, 255), 0.2);
+                    }
+
+                    &::placeholder {
+                        color: rgba(255, 255, 255, 0.25);
+                    }
+                }
+
             }
         }
     }

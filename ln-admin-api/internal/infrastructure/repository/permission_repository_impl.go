@@ -131,6 +131,8 @@ func (r *permissionRepositoryImpl) List(ctx context.Context, page, pageSize int,
 			query = query.Where("AAF005 = ?", value)
 		case "status":
 			query = query.Where("AAF007 = ?", value)
+		case "category":
+			query = query.Where("AAF010 = ?", value)
 		}
 	}
 

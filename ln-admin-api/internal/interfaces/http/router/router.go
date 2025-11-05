@@ -21,7 +21,9 @@ import (
 func SetupRouter(userAppService *appService.UserAppService, smsAppService *appService.SMSAppService, permissionService *appService.PermissionService) *gin.Engine {
 	// 创建菜单仓库和服务
 	menuRepo := infraRepo.NewMenuRepository()
-	menuService := appService.NewMenuService(permissionService, menuRepo)
+	permissionRepo := infraRepo.NewPermissionRepository()
+	roleMenuRepo := infraRepo.NewRoleMenuRepository()
+	menuService := appService.NewMenuService(permissionService, menuRepo, permissionRepo, roleMenuRepo)
 	menuHandler := handler.NewMenuHandler(menuService)
 	// 创建用户仓库（用于handler）
 	userRepo := infraRepo.NewUserRepository()
@@ -76,12 +78,14 @@ func SetupRouter(userAppService *appService.UserAppService, smsAppService *appSe
 		menuManagement.Use(middleware.Auth())             // JWT认证
 		menuManagement.Use(middleware.CasbinMiddleware()) // Casbin权限验证
 		{
-			menuManagement.GET("/list", menuHandler.ListMenus)    // 获取菜单列表
-			menuManagement.GET("/tree", menuHandler.GetMenuTree)  // 获取菜单树
-			menuManagement.POST("", menuHandler.CreateMenu)       // 创建菜单
-			menuManagement.GET("/:id", menuHandler.GetMenu)       // 获取菜单详情（必须放在最后，避免与/list等冲突）
-			menuManagement.PUT("/:id", menuHandler.UpdateMenu)    // 更新菜单
-			menuManagement.DELETE("/:id", menuHandler.DeleteMenu) // 删除菜单
+			menuManagement.GET("/list", menuHandler.ListMenus)                     // 获取菜单列表
+			menuManagement.GET("/tree", menuHandler.GetMenuTree)                   // 获取菜单树
+			menuManagement.POST("", menuHandler.CreateMenu)                        // 创建菜单
+			menuManagement.GET("/role/:roleId/menus", menuHandler.GetRoleMenus)    // 获取角色的菜单列表（必须放在/:id之前）
+			menuManagement.POST("/role/:roleId/menus", menuHandler.GrantRoleMenus) // 为角色分配菜单（必须放在/:id之前）
+			menuManagement.GET("/:id", menuHandler.GetMenu)                        // 获取菜单详情（必须放在最后，避免与/list等冲突）
+			menuManagement.PUT("/:id", menuHandler.UpdateMenu)                     // 更新菜单
+			menuManagement.DELETE("/:id", menuHandler.DeleteMenu)                  // 删除菜单
 		}
 
 		// 工作台相关路由（需要认证）

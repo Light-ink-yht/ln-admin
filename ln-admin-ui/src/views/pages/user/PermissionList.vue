@@ -15,6 +15,12 @@
         row-key="permissionId"
     >
         <!-- 自定义列插槽 -->
+        <template #column-category="{ record }">
+            <a-tag :color="getCategoryColor(record.category || getPermissionCategory(record.permissionKey))">
+                {{ record.category || getPermissionCategory(record.permissionKey) }}
+            </a-tag>
+        </template>
+
         <template #column-status="{ record }">
             <UserStatus :status="record.status" />
         </template>
@@ -65,6 +71,7 @@ import {
     PermissionDeniedAlert,
     getPermissionSearchFields,
     getPermissionColumns,
+    getPermissionCategory,
     mapPermissionList,
     type ExtraAction,
     type ActionButton,
@@ -90,6 +97,22 @@ const searchFields = getPermissionSearchFields()
 
 // 表格列定义（使用封装的函数）
 const columns = getPermissionColumns()
+
+// 获取分类颜色
+const getCategoryColor = (category: string): string => {
+    const colorMap: Record<string, string> = {
+        '用户管理': 'blue',
+        '角色管理': 'green',
+        '权限管理': 'orange',
+        '系统配置': 'purple',
+        '短信管理': 'cyan',
+        '菜单管理': 'magenta',
+        '系统运维': 'red',
+        '文件管理': 'geekblue',
+        '其他': 'default',
+    }
+    return colorMap[category] || 'default'
+}
 
 // 数据获取函数
 const fetchPermissionList = async (params: any): Promise<PageResponse<Permission[]>> => {

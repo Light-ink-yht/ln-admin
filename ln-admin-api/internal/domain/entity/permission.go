@@ -21,6 +21,7 @@ type AA06 struct {
 	AAF007 string `gorm:"column:AAF007;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"` // 状态
 	AAF008 string `gorm:"column:AAF008;type:varchar(50);comment:创建人"`                      // 创建人
 	AAF009 string `gorm:"column:AAF009;type:varchar(50);comment:修改人"`                      // 修改人
+	AAF010 string `gorm:"column:AAF010;type:varchar(50);comment:分类"`                       // 分类（用户管理、角色管理等）
 }
 
 // TableName 指定表名
@@ -48,6 +49,7 @@ type Permission struct {
 	Status         string     `json:"status"`          // AAF007
 	CreatorID      string     `json:"creator_id"`      // AAF008
 	ModifierID     string     `json:"modifier_id"`     // AAF009
+	Category       string     `json:"category"`        // AAF010
 }
 
 // ToAA06 转换为数据库实体
@@ -71,6 +73,7 @@ func (p *Permission) ToAA06() *AA06 {
 		AAF007: p.Status,
 		AAF008: p.CreatorID,
 		AAF009: p.ModifierID,
+		AAF010: p.Category,
 	}
 }
 
@@ -89,6 +92,7 @@ func (p *Permission) FromAA06(aa06 *AA06) {
 	p.Status = aa06.AAF007
 	p.CreatorID = aa06.AAF008
 	p.ModifierID = aa06.AAF009
+	p.Category = aa06.AAF010
 }
 
 // IsDisabled 判断权限是否禁用

@@ -154,5 +154,19 @@ export const menuApi = {
     getMenuTree(menuType: string): Promise<ResponseData<Menu[]>> {
         return request.get<Menu[]>('/menu/tree', { menu_type: menuType })
     },
+
+    /**
+     * 为角色分配菜单
+     */
+    grantRoleMenus(roleId: string, menuIds: string[]): Promise<ResponseData<void>> {
+        return request.post<void>(`/menu/role/${roleId}/menus`, { menu_ids: menuIds })
+    },
+
+    /**
+     * 获取角色的菜单列表
+     */
+    getRoleMenus(roleId: string): Promise<ResponseData<{ menu_ids: string[] }>> {
+        return request.get<{ menu_ids: string[] }>(`/menu/role/${roleId}/menus`)
+    },
 }
 
