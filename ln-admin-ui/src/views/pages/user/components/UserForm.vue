@@ -102,10 +102,10 @@
                 </a-row>
             </div>
 
-            <a-divider style="margin: 24px 0;" />
+            <a-divider v-if="!isSuperAdmin" style="margin: 24px 0;" />
 
-            <!-- 角色和权限 -->
-            <div class="form-section">
+            <!-- 角色和权限（超级管理员不显示） -->
+            <div v-if="!isSuperAdmin" class="form-section">
                 <div class="section-title">
                     <SafetyOutlined />
                     <span>角色权限</span>
@@ -190,6 +190,25 @@ const createdUserId = ref<string | null>(null) // 用于存储新创建的用户
 
 const isEdit = computed(() => !!props.user)
 
+// 用户详情（用于判断角色）
+const userDetail = ref<any>(null)
+
+// 判断是否是超级管理员
+const isSuperAdmin = computed(() => {
+    if (!props.user) {
+        return false
+    }
+    // 通过手机号判断
+    if (props.user.phone === '18797131041') {
+        return true
+    }
+    // 通过角色判断（从用户详情中获取角色信息）
+    if (userDetail.value && userDetail.value.roles && Array.isArray(userDetail.value.roles)) {
+        return userDetail.value.roles.some((role: any) => role.roleKey === 'super_admin')
+    }
+    return false
+})
+
 const formData = reactive<CreateUserRequest & { birthday?: Dayjs | null }>({
     phone: '',
     email: '',
@@ -217,16 +236,19 @@ const visible = computed({
     set: (val) => emit('update:open', val),
 })
 
-// 加载角色列表
+// 加载角色列表（过滤掉超级管理员角色）
 const loadRoles = async () => {
     rolesLoading.value = true
     try {
         const response = await roleApi.getAllRoles()
         if (response.code === 200 || response.code === 0) {
-            roleOptions.value = (response.data || []).map((role: Role) => ({
-                label: role.roleName,
-                value: role.roleId,
-            }))
+            // 过滤掉超级管理员角色
+            roleOptions.value = (response.data || [])
+                .filter((role: Role) => role.roleKey !== 'super_admin')
+                .map((role: Role) => ({
+                    label: role.roleName,
+                    value: role.roleId,
+                }))
         }
     } catch (error: any) {
         console.error('加载角色列表失败:', error)
@@ -246,6 +268,10 @@ const loadRoles = async () => {
 const initFormData = async () => {
     if (props.user) {
         // 编辑模式
+        // 重置创建用户ID，确保不会意外打开权限授权弹窗
+        createdUserId.value = null
+        grantPermissionOpen.value = false
+        
         formData.email = props.user.email || ''
         formData.nickname = props.user.nickname || ''
         formData.fullName = props.user.fullName || ''
@@ -260,16 +286,22 @@ const initFormData = async () => {
         try {
             const detailResponse = await userApi.getUserDetail(props.user.userId)
             if (detailResponse.code === 200 || detailResponse.code === 0) {
+                userDetail.value = detailResponse.data // 保存用户详情用于判断超级管理员
                 formData.roleIds = (detailResponse.data?.roles || []).map((r: RoleInfo) => r.roleId)
                 currentPermissions.value = detailResponse.data?.permissions || []
             }
         } catch (error) {
             console.error('加载用户信息失败:', error)
+            userDetail.value = null
             formData.roleIds = []
             currentPermissions.value = []
         }
     } else {
         // 添加模式
+        // 重置创建用户ID和权限授权弹窗状态
+        createdUserId.value = null
+        grantPermissionOpen.value = false
+        
         formData.phone = ''
         formData.email = ''
         formData.password = ''
@@ -298,7 +330,11 @@ const handleSubmit = async () => {
             status: formData.status,
             avatar: formData.avatar,
             remarks: formData.remarks,
-            roleIds: formData.roleIds,
+        }
+        
+        // 超级管理员不提交角色信息
+        if (!isSuperAdmin.value) {
+            submitData.roleIds = formData.roleIds
         }
 
         if (formData.birthday) {
@@ -341,16 +377,27 @@ const handleSubmit = async () => {
         if (error.errorFields) {
             return
         }
-        message.error(error.message || '操作失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         loading.value = false
     }
 }
 
 // 处理授权权限
-const handleGrantPermission = () => {
-    // 编辑模式下，直接打开授权弹窗
+const handleGrantPermission = async () => {
+    // 编辑模式下，需要先加载用户权限，然后打开授权弹窗
     if (isEdit.value && props.user) {
+        // 确保权限已加载
+        if (currentPermissions.value.length === 0) {
+            try {
+                const detailResponse = await userApi.getUserDetail(props.user.userId)
+                if (detailResponse.code === 200 || detailResponse.code === 0) {
+                    currentPermissions.value = detailResponse.data?.permissions || []
+                }
+            } catch (error) {
+                console.error('加载用户权限失败:', error)
+            }
+        }
         grantPermissionOpen.value = true
         return
     }
@@ -391,6 +438,7 @@ const handleCancel = () => {
     formRef.value?.resetFields()
     createdUserId.value = null // 重置创建的用户ID
     currentPermissions.value = [] // 重置权限列表
+    userDetail.value = null // 重置用户详情
     emit('update:open', false)
 }
 
@@ -399,12 +447,22 @@ watch(
     () => [props.open, props.user],
     async ([open, user]) => {
         if (open) {
+            // 确保权限授权弹窗关闭
+            grantPermissionOpen.value = false
+            // 重置创建用户ID
+            createdUserId.value = null
+            
             loadRoles()
             // 使用 nextTick 确保在 DOM 更新后再初始化表单数据
             await nextTick()
             initFormData()
         } else {
-            // 关闭时重置表单
+            // 关闭时重置表单和状态
+            grantPermissionOpen.value = false
+            createdUserId.value = null
+            currentPermissions.value = []
+            userDetail.value = null // 重置用户详情
+            
             formRef.value?.resetFields()
             Object.assign(formData, {
                 phone: '',

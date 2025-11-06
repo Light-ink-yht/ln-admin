@@ -222,6 +222,7 @@
                                         :type="getActionButtonType(action)"
                                         :size="action.size || 'small'"
                                         :danger="action.danger"
+                                        :disabled="typeof action.disabled === 'function' ? action.disabled(record) : action.disabled"
                                         class="action-button"
                                     >
                                         {{ action.label }}
@@ -232,6 +233,7 @@
                                     :type="getActionButtonType(action)"
                                     :size="action.size || 'small'"
                                     :danger="action.danger"
+                                    :disabled="typeof action.disabled === 'function' ? action.disabled(record) : action.disabled"
                                     @click="() => action.onClick(record)"
                                     class="action-button"
                                 >
@@ -279,6 +281,7 @@ export interface ActionButton {
     okText?: string
     cancelText?: string
     onClick: (record: any) => void | Promise<void>
+    disabled?: boolean | ((record: any) => boolean)
 }
 
 /**

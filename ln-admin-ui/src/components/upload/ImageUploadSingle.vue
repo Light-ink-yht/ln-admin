@@ -144,7 +144,7 @@ const beforeUpload: UploadProps['beforeUpload'] = (file) => {
     // 检查文件类型
     if (!file.type.startsWith('image/')) {
         const error = '只能上传图片文件！'
-        message.error(error)
+        message.warning(error)
         uploadError.value = error
         return false
     }
@@ -153,7 +153,7 @@ const beforeUpload: UploadProps['beforeUpload'] = (file) => {
     const maxSizeBytes = props.maxSize * 1024 * 1024
     if (file.size > maxSizeBytes) {
         const error = `图片大小不能超过 ${props.maxSize}MB！`
-        message.error(error)
+        message.warning(error)
         uploadError.value = error
         return false
     }
@@ -201,14 +201,14 @@ const customRequest: UploadProps['customRequest'] = async (options) => {
             uploadError.value = error.message
             emit('upload-error', error)
             onError?.(error)
-            message.error(response.msg || '上传失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         }
     } catch (error: any) {
         console.error('上传图片失败:', error)
         uploadError.value = error.message || '上传失败'
         emit('upload-error', error)
         onError?.(error)
-        message.error(error.message || '上传失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         uploading.value = false
         uploadProgress.value = 0

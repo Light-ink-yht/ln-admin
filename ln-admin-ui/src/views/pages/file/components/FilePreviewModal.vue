@@ -114,7 +114,7 @@ const handleDownload = async () => {
         message.success('下载成功')
     } catch (error: any) {
         console.error('下载文件失败:', error)
-        message.error(error.message || '下载文件失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 </script>

@@ -12,15 +12,15 @@ const TableCommentAA04 = "短信验证码表：存储短信验证码的发送记
 // AA04 短信验证码表
 type AA04 struct {
 	gorm.Model
-	AAD001 string     `gorm:"column:AAD001;type:varchar(50);primaryKey;comment:验证码ID"`                 // 验证码ID, 主键
-	AAD002 string     `gorm:"column:AAD002;type:varchar(20);index;comment:手机号"`                        // 手机号
-	AAD003 string     `gorm:"column:AAD003;type:varchar(10);comment:验证码"`                              // 验证码
-	AAD004 string     `gorm:"column:AAD004;type:varchar(20);comment:验证码类型"`                            // 验证码类型 (register, forgot, login等)
-	AAD005 string     `gorm:"column:AAD005;type:varchar(10);default:'1';comment:状态 1 未使用，2 已使用，3 已过期"` // 状态
-	AAD006 *time.Time `gorm:"column:AAD006;type:datetime;comment:过期时间"`                                // 过期时间
-	AAD007 *time.Time `gorm:"column:AAD007;type:datetime;comment:使用时间"`                                // 使用时间
-	AAD008 string     `gorm:"column:AAD008;type:varchar(50);comment:IP地址"`                             // IP地址
-	AAD009 int        `gorm:"column:AAD009;type:int;default:0;comment:发送次数"`                           // 发送次数
+	AAD001 string     `gorm:"column:AAD001;type:varchar(50);primaryKey;comment:验证码ID"`                                                              // 验证码ID, 主键
+	AAD002 string     `gorm:"column:AAD002;type:varchar(20);index;index:idx_phone_type_status,priority:1;comment:手机号"`                              // 手机号
+	AAD003 string     `gorm:"column:AAD003;type:varchar(10);comment:验证码"`                                                                           // 验证码
+	AAD004 string     `gorm:"column:AAD004;type:varchar(20);index;index:idx_phone_type_status,priority:2;comment:验证码类型"`                            // 验证码类型 (register, forgot, login等)
+	AAD005 string     `gorm:"column:AAD005;type:varchar(10);default:'1';index;index:idx_phone_type_status,priority:3;comment:状态 1 未使用，2 已使用，3 已过期"` // 状态
+	AAD006 *time.Time `gorm:"column:AAD006;type:datetime;index;comment:过期时间"`                                                                       // 过期时间
+	AAD007 *time.Time `gorm:"column:AAD007;type:datetime;comment:使用时间"`                                                                             // 使用时间
+	AAD008 string     `gorm:"column:AAD008;type:varchar(50);comment:IP地址"`                                                                          // IP地址
+	AAD009 int        `gorm:"column:AAD009;type:int;default:0;comment:发送次数"`                                                                        // 发送次数
 }
 
 // TableName 指定表名

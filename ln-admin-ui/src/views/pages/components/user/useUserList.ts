@@ -122,7 +122,7 @@ export function useUserList(
             message.success('删除成功')
             refreshList()
         } catch (error: any) {
-            message.error(error.message || '删除失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             throw error
         }
     }
@@ -185,6 +185,10 @@ export function useUserList(
                 danger: true,
                 confirm: deleteConfirmText,
                 onClick: handleDeleteUser,
+                disabled: (record: UserResponse) => {
+                    // 超级管理员账号不能删除
+                    return record.phone === '18797131041'
+                },
             })
         }
 

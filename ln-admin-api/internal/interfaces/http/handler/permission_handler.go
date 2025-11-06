@@ -665,9 +665,9 @@ func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 	response.SuccessWithMessage(c, "删除权限成功", nil)
 }
 
-// GetAllPermissions 获取所有权限（不分页）
+// GetAllPermissions 获取所有权限（不分页，根据层级授权过滤）
 // @Summary      获取所有权限
-// @Description  获取所有权限列表，不分页，用于下拉选择等场景
+// @Description  获取当前用户可见的权限列表，不分页，用于下拉选择等场景。超级管理员可以看到所有权限，其他用户只能看到被授予的权限。
 // @Tags         权限管理
 // @Accept       json
 // @Produce      json
@@ -679,7 +679,7 @@ func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 func (h *PermissionHandler) GetAllPermissions(c *gin.Context) {
 	clientIP := c.ClientIP()
 
-	// 从上下文获取用户ID（用于日志）
+	// 从上下文获取用户ID
 	userID := ""
 	if uid, exists := c.Get("user_id"); exists {
 		if uidStr, ok := uid.(string); ok {
@@ -687,12 +687,17 @@ func (h *PermissionHandler) GetAllPermissions(c *gin.Context) {
 		}
 	}
 
+	if userID == "" {
+		response.Unauthorized(c, "未授权")
+		return
+	}
+
 	logger.Info("开始获取所有权限",
 		zap.String("user_id", userID),
 		zap.String("ip", clientIP))
 
-	// 调用服务，获取所有权限（使用大pageSize）
-	permissions, _, err := h.permissionService.GetPermissionList(c.Request.Context(), 1, 10000, make(map[string]interface{}))
+	// 调用服务，获取用户可见的权限（根据层级授权）
+	permissions, err := h.permissionService.GetVisiblePermissions(c.Request.Context(), userID)
 	if err != nil {
 		logger.Error("获取所有权限失败",
 			zap.String("操作", "获取所有权限"),

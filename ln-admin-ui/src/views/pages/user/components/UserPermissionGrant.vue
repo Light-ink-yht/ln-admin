@@ -1,18 +1,30 @@
 <template>
     <a-modal
         v-model:open="visible"
-        title="用户权限授权"
+        :title="isSuperAdmin ? '用户权限查看（超级管理员）' : '用户权限授权'"
         :width="900"
         :confirm-loading="loading"
-        @ok="handleSubmit"
+        :ok-text="isSuperAdmin ? '关闭' : '确定'"
+        :cancel-text="isSuperAdmin ? '' : '取消'"
+        :ok-button-props="isSuperAdmin ? {} : {}"
+        @ok="handleOk"
         @cancel="handleCancel"
     >
         <a-spin :spinning="permissionsLoading">
             <div class="grant-permission-content">
                 <a-alert
+                    v-if="!isSuperAdmin"
                     message="提示"
                     description="可以直接为用户分配权限，这些权限会独立于角色权限之外。如果用户同时拥有角色权限和直接权限，两者会合并生效。"
                     type="info"
+                    show-icon
+                    style="margin-bottom: 16px"
+                />
+                <a-alert
+                    v-else
+                    message="超级管理员提示"
+                    description="超级管理员拥有系统所有权限，无需单独分配权限。此页面仅用于查看权限信息。"
+                    type="warning"
                     show-icon
                     style="margin-bottom: 16px"
                 />
@@ -53,7 +65,7 @@
                                 :columns="columns"
                                 :data-source="perms"
                                 :pagination="false"
-                                :row-selection="getRowSelection(perms)"
+                                :row-selection="isSuperAdmin ? undefined : getRowSelection(perms)"
                                 size="small"
                                 :row-key="(record) => record.permissionId"
                             >
@@ -120,6 +132,21 @@ const permissionsLoading = ref(false)
 const permissions = ref<Permission[]>([])
 const selectedPermissionIds = ref<string[]>([])
 const searchKeyword = ref('')
+const userDetail = ref<any>(null) // 存储用户详情，用于判断是否是超级管理员
+const isSuperAdmin = computed(() => {
+    // 判断是否是超级管理员：通过手机号或角色判断
+    if (userDetail.value) {
+        // 通过手机号判断
+        if (userDetail.value.phone === '18797131041') {
+            return true
+        }
+        // 通过角色判断
+        if (userDetail.value.roles && Array.isArray(userDetail.value.roles)) {
+            return userDetail.value.roles.some((role: any) => role.roleKey === 'super_admin')
+        }
+    }
+    return false
+})
 
 const getMethodColor = (method: string) => {
     const colorMap: Record<string, string> = {
@@ -248,6 +275,22 @@ const getRowSelection = (perms: Permission[]) => {
     }
 }
 
+// 加载用户详情（用于判断是否是超级管理员）
+const loadUserDetail = async () => {
+    if (!props.userId) {
+        return
+    }
+    try {
+        const response = await userApi.getUserDetail(props.userId)
+        if (response.code === 200 || response.code === 0) {
+            userDetail.value = response.data
+        }
+    } catch (error: any) {
+        console.error('加载用户详情失败:', error)
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
+    }
+}
+
 // 加载所有权限
 const loadPermissions = async () => {
     permissionsLoading.value = true
@@ -258,7 +301,7 @@ const loadPermissions = async () => {
         }
     } catch (error: any) {
         console.error('加载权限列表失败:', error)
-        message.error('加载权限列表失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         permissionsLoading.value = false
     }
@@ -273,23 +316,47 @@ const initSelectedPermissions = () => {
     }
 }
 
-// 提交授权
-const handleSubmit = async () => {
-    if (!props.userId) {
-        message.error('用户ID不能为空')
+// 处理确认按钮点击
+const handleOk = async () => {
+    if (isSuperAdmin.value) {
+        handleCancel()
         return
+    }
+
+    const result = await handleSubmit()
+    // 如果返回 false，阻止 Modal 关闭
+    if (result === false) {
+        return false
+    }
+}
+
+// 提交授权
+const handleSubmit = async (): Promise<boolean> => {
+    if (!props.userId) {
+        message.warning('用户ID不能为空')
+        return false
+    }
+
+    // 超级管理员不需要分配权限
+    if (isSuperAdmin.value) {
+        message.warning('超级管理员拥有所有权限，无需单独分配')
+        handleCancel()
+        return true
     }
 
     loading.value = true
     try {
-        // 调用后端API给用户分配权限
+        // 调用后端API给用户分配权限（允许空数组，表示清空所有直接权限）
         await userApi.grantPermissions(props.userId, selectedPermissionIds.value)
         message.success('授权成功')
         emit('success')
         handleCancel()
+        return true
     } catch (error: any) {
         console.error('授权失败:', error)
-        message.error(error.message || '授权失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
+        // 如果发生错误，不关闭模态框，让用户可以看到错误信息并重试
+        return false
     } finally {
         loading.value = false
     }
@@ -299,16 +366,23 @@ const handleSubmit = async () => {
 const handleCancel = () => {
     selectedPermissionIds.value = []
     searchKeyword.value = ''
+    userDetail.value = null
     emit('update:open', false)
 }
 
 // 监听打开状态
 watch(
     () => props.open,
-    (val) => {
+    async (val) => {
         if (val) {
+            // 先加载用户详情，判断是否是超级管理员
+            await loadUserDetail()
+            // 加载权限列表
             loadPermissions()
             initSelectedPermissions()
+        } else {
+            // 关闭时重置
+            userDetail.value = null
         }
     }
 )

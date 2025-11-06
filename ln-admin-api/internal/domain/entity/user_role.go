@@ -12,8 +12,9 @@ const TableCommentAA07 = "用户角色关联表：存储用户与角色之间的
 // AA07 用户角色关联表
 type AA07 struct {
 	gorm.Model
-	AAG001 string `gorm:"column:AAG001;type:varchar(50);index;comment:用户ID"` // 用户ID
-	AAG002 string `gorm:"column:AAG002;type:varchar(50);index;comment:角色ID"` // 角色ID
+	AAG001 string `gorm:"column:AAG001;type:varchar(50);index;index:idx_user_role,priority:1;comment:用户ID"` // 用户ID
+	AAG002 string `gorm:"column:AAG002;type:varchar(50);index;index:idx_user_role,priority:2;comment:角色ID"` // 角色ID
+	// 注意：唯一联合索引需要在数据库迁移时手动创建，或在GORM中通过Migrate方法创建
 }
 
 // TableName 指定表名

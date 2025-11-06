@@ -12,13 +12,13 @@ const TableCommentAA05 = "角色表：定义系统中的角色信息，如超级
 // AA05 角色表
 type AA05 struct {
 	gorm.Model
-	AAE001 string `gorm:"column:AAE001;type:varchar(50);primaryKey;comment:角色ID"`          // 角色ID, 主键
-	AAE002 string `gorm:"column:AAE002;type:varchar(100);uniqueIndex;comment:角色标识"`        // 角色标识（唯一）
-	AAE003 string `gorm:"column:AAE003;type:varchar(100);comment:角色名称"`                    // 角色名称
-	AAE004 string `gorm:"column:AAE004;type:varchar(500);comment:角色描述"`                    // 角色描述
-	AAE005 string `gorm:"column:AAE005;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"` // 状态
-	AAE006 string `gorm:"column:AAE006;type:varchar(50);comment:创建人"`                      // 创建人
-	AAE007 string `gorm:"column:AAE007;type:varchar(50);comment:修改人"`                      // 修改人
+	AAE001 string `gorm:"column:AAE001;type:varchar(50);primaryKey;comment:角色ID"`                // 角色ID, 主键
+	AAE002 string `gorm:"column:AAE002;type:varchar(100);uniqueIndex;comment:角色标识"`              // 角色标识（唯一）
+	AAE003 string `gorm:"column:AAE003;type:varchar(100);comment:角色名称"`                          // 角色名称
+	AAE004 string `gorm:"column:AAE004;type:varchar(500);comment:角色描述"`                          // 角色描述
+	AAE005 string `gorm:"column:AAE005;type:varchar(10);default:'1';index;comment:状态 1 启用，2 禁用"` // 状态
+	AAE006 string `gorm:"column:AAE006;type:varchar(50);comment:创建人"`                            // 创建人
+	AAE007 string `gorm:"column:AAE007;type:varchar(50);comment:修改人"`                            // 修改人
 }
 
 // TableName 指定表名

@@ -186,11 +186,11 @@ const loadConfig = async () => {
                 })
             }
         } else {
-            message.error(response.msg || '获取配置失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         }
     } catch (error: any) {
         console.error('获取配置失败:', error)
-        message.error(error.message || '获取配置失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         loading.value = false
     }
@@ -217,7 +217,7 @@ const handleSubmit = async () => {
                 message.success('保存配置成功')
                 await loadConfig()
             } else {
-                message.error(response.msg || '保存配置失败')
+                // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             }
         } else {
             // S3存储需要所有字段
@@ -236,7 +236,7 @@ const handleSubmit = async () => {
                 message.success('保存配置成功')
                 await loadConfig()
             } else {
-                message.error(response.msg || '保存配置失败')
+                // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             }
         }
     } catch (error: any) {
@@ -244,7 +244,7 @@ const handleSubmit = async () => {
         if (error.errorFields) {
             return
         }
-        message.error(error.message || '保存配置失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         loading.value = false
     }

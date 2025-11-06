@@ -58,14 +58,12 @@ const loadPermissionDetail = async (permissionId: string) => {
         if (response.code === 200 || response.code === 0) {
             permissionDetail.value = response.data
         } else {
-            message.error(response.message || '获取权限详情失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             permissionDetail.value = null
         }
     } catch (error: any) {
         console.error('获取权限详情失败:', error)
-        if (error.response?.status !== 404) {
-            message.error(error.message || '获取权限详情失败')
-        }
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         permissionDetail.value = null
     } finally {
         loading.value = false

@@ -423,7 +423,7 @@ const loadConfigs = async () => {
         }
     } catch (error: any) {
         console.error('加载配置列表失败:', error)
-        message.error(error.message || '加载配置列表失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         loading.value = false
     }
@@ -507,7 +507,7 @@ const handleAdd = () => {
 // 保存配置（弹窗）
 const handleSave = async () => {
     if (!editForm.value.configName || !editForm.value.configKey || !editForm.value.configValue) {
-        message.error('请填写完整信息')
+        message.warning('请填写完整信息')
         return
     }
 
@@ -541,7 +541,7 @@ const handleSave = async () => {
         await systemConfigStore.loadConfigs()
     } catch (error: any) {
         console.error('保存配置失败:', error)
-        message.error(error.message || '保存配置失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         saving.value = false
     }

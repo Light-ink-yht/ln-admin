@@ -16,7 +16,8 @@ var (
 
 // Claims JWT Claims
 type Claims struct {
-	UserID string `json:"user_id"`
+	UserID string   `json:"user_id"`
+	Roles  []string `json:"roles,omitempty"` // 用户角色列表，用于权限验证
 	jwt.RegisteredClaims
 }
 
@@ -29,13 +30,14 @@ type TokenPair struct {
 }
 
 // GenerateToken 生成JWT AccessToken
-func GenerateToken(userID string) (string, int64, error) {
+func GenerateToken(userID string, roles []string) (string, int64, error) {
 	now := time.Now()
 	expiresAt := now.Add(time.Duration(config.Cfg.JWT.Expire) * time.Second)
 	expiresIn := int64(config.Cfg.JWT.Expire)
 
 	claims := &Claims{
 		UserID: userID,
+		Roles:  roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -53,13 +55,14 @@ func GenerateToken(userID string) (string, int64, error) {
 }
 
 // GenerateRefreshToken 生成刷新Token
-func GenerateRefreshToken(userID string) (string, int64, error) {
+func GenerateRefreshToken(userID string, roles []string) (string, int64, error) {
 	now := time.Now()
 	expiresAt := now.Add(time.Duration(config.Cfg.JWT.RefreshExpire) * time.Second)
 	expiresIn := int64(config.Cfg.JWT.RefreshExpire)
 
 	claims := &Claims{
 		UserID: userID,
+		Roles:  roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -77,13 +80,13 @@ func GenerateRefreshToken(userID string) (string, int64, error) {
 }
 
 // GenerateTokenPair 生成双Token
-func GenerateTokenPair(userID string) (*TokenPair, error) {
-	accessToken, expiresIn, err := GenerateToken(userID)
+func GenerateTokenPair(userID string, roles []string) (*TokenPair, error) {
+	accessToken, expiresIn, err := GenerateToken(userID, roles)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, refreshExpiresIn, err := GenerateRefreshToken(userID)
+	refreshToken, refreshExpiresIn, err := GenerateRefreshToken(userID, roles)
 	if err != nil {
 		return nil, err
 	}

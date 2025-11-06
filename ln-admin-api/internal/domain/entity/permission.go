@@ -12,16 +12,16 @@ const TableCommentAA06 = "权限表：定义系统的权限资源，包括资源
 // AA06 权限表
 type AA06 struct {
 	gorm.Model
-	AAF001 string `gorm:"column:AAF001;type:varchar(50);primaryKey;comment:权限ID"`          // 权限ID, 主键
-	AAF002 string `gorm:"column:AAF002;type:varchar(100);uniqueIndex;comment:权限标识"`        // 权限标识（唯一）
-	AAF003 string `gorm:"column:AAF003;type:varchar(100);comment:权限名称"`                    // 权限名称
-	AAF004 string `gorm:"column:AAF004;type:varchar(200);comment:资源路径"`                    // 资源路径（API路径）
-	AAF005 string `gorm:"column:AAF005;type:varchar(10);comment:请求方法"`                     // 请求方法（GET, POST, PUT, DELETE等）
-	AAF006 string `gorm:"column:AAF006;type:varchar(500);comment:权限描述"`                    // 权限描述
-	AAF007 string `gorm:"column:AAF007;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"` // 状态
-	AAF008 string `gorm:"column:AAF008;type:varchar(50);comment:创建人"`                      // 创建人
-	AAF009 string `gorm:"column:AAF009;type:varchar(50);comment:修改人"`                      // 修改人
-	AAF010 string `gorm:"column:AAF010;type:varchar(50);comment:分类"`                       // 分类（用户管理、角色管理等）
+	AAF001 string `gorm:"column:AAF001;type:varchar(50);primaryKey;comment:权限ID"`                            // 权限ID, 主键
+	AAF002 string `gorm:"column:AAF002;type:varchar(100);uniqueIndex;comment:权限标识"`                          // 权限标识（唯一）
+	AAF003 string `gorm:"column:AAF003;type:varchar(100);comment:权限名称"`                                      // 权限名称
+	AAF004 string `gorm:"column:AAF004;type:varchar(200);index:idx_resource_method,priority:1;comment:资源路径"` // 资源路径（API路径）
+	AAF005 string `gorm:"column:AAF005;type:varchar(10);index:idx_resource_method,priority:2;comment:请求方法"`  // 请求方法（GET, POST, PUT, DELETE等）
+	AAF006 string `gorm:"column:AAF006;type:varchar(500);comment:权限描述"`                                      // 权限描述
+	AAF007 string `gorm:"column:AAF007;type:varchar(10);default:'1';index;comment:状态 1 启用，2 禁用"`             // 状态
+	AAF008 string `gorm:"column:AAF008;type:varchar(50);comment:创建人"`                                        // 创建人
+	AAF009 string `gorm:"column:AAF009;type:varchar(50);comment:修改人"`                                        // 修改人
+	AAF010 string `gorm:"column:AAF010;type:varchar(50);index;comment:分类"`                                   // 分类（用户管理、角色管理等）
 }
 
 // TableName 指定表名

@@ -186,7 +186,7 @@ const actions: ActionButton[] = [
                 message.success('删除成功')
                 dataListRef.value?.refresh()
             } catch (error: any) {
-                message.error(error.message || '删除失败')
+                // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             }
         },
     },

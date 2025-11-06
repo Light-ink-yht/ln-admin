@@ -19,46 +19,57 @@ import (
 	"go.uber.org/zap"
 )
 
-// InitDefaultData 初始化默认数据（默认用户和角色）
+// InitDefaultData 初始化默认数据（默认用户、角色、权限、菜单、短信模板、系统配置等）
 func InitDefaultData(
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
 	permissionRepo repository.PermissionRepository,
 	userRoleRepo repository.UserRoleRepository,
 	templateRepo repository.SMSTemplateRepository,
+	menuRepo repository.MenuRepository,
 	permissionService *service.PermissionService,
 ) error {
 	ctx := context.Background()
 
-	// 初始化默认角色
+	// 1. 初始化默认角色
 	if err := initDefaultRoles(ctx, roleRepo); err != nil {
 		return fmt.Errorf("初始化默认角色失败: %w", err)
 	}
 
-	// 初始化默认权限
+	// 2. 初始化默认权限
 	if err := initDefaultPermissions(ctx, permissionRepo); err != nil {
 		return fmt.Errorf("初始化默认权限失败: %w", err)
 	}
 
-	// 初始化默认短信模板
+	// 3. 初始化默认菜单（必须在权限之后，因为菜单可能关联权限）
+	if err := initDefaultMenus(ctx, menuRepo); err != nil {
+		return fmt.Errorf("初始化默认菜单失败: %w", err)
+	}
+
+	// 4. 初始化默认短信模板
 	if err := initDefaultSMSTemplates(ctx, templateRepo); err != nil {
 		return fmt.Errorf("初始化默认短信模板失败: %w", err)
 	}
 
-	// 初始化默认系统配置
+	// 5. 初始化默认系统配置
 	configRepo := infraRepo.NewSystemConfigRepository()
 	if err := initDefaultSystemConfigs(ctx, configRepo); err != nil {
 		return fmt.Errorf("初始化默认系统配置失败: %w", err)
 	}
 
-	// 初始化默认用户
+	// 6. 初始化默认用户（超级管理员账号：18797131041）
 	if err := initDefaultUser(ctx, userRepo, roleRepo, userRoleRepo, permissionService); err != nil {
 		return fmt.Errorf("初始化默认用户失败: %w", err)
 	}
 
-	// 为超级管理员分配所有权限
+	// 7. 为超级管理员分配所有权限
 	if err := assignAllPermissionsToAdmin(ctx, roleRepo, permissionRepo, permissionService); err != nil {
 		return fmt.Errorf("为超级管理员分配权限失败: %w", err)
+	}
+
+	// 8. 为超级管理员角色分配所有菜单
+	if err := assignAllMenusToAdmin(ctx, roleRepo, menuRepo); err != nil {
+		return fmt.Errorf("为超级管理员分配菜单失败: %w", err)
 	}
 
 	logger.Info("默认数据初始化成功")
@@ -1024,7 +1035,7 @@ func initDefaultUser(
 	return nil
 }
 
-// assignAllPermissionsToAdmin 为超级管理员分配所有权限
+// assignAllPermissionsToAdmin 为超级管理员分配所有权限（同时记录授予关系）
 func assignAllPermissionsToAdmin(
 	ctx context.Context,
 	roleRepo repository.RoleRepository,
@@ -1040,16 +1051,32 @@ func assignAllPermissionsToAdmin(
 		return fmt.Errorf("超级管理员角色不存在")
 	}
 
-	// 获取所有权限
-	permissions, _, err := permissionRepo.List(ctx, 1, 1000, map[string]interface{}{})
-	if err != nil {
-		return fmt.Errorf("查询权限列表失败: %w", err)
+	// 获取所有权限（分页获取，确保获取所有权限）
+	allPermissions := make([]*entity.Permission, 0)
+	page := 1
+	pageSize := 1000
+	for {
+		permissions, total, err := permissionRepo.List(ctx, page, pageSize, map[string]interface{}{})
+		if err != nil {
+			return fmt.Errorf("查询权限列表失败: %w", err)
+		}
+		allPermissions = append(allPermissions, permissions...)
+		if int64(len(allPermissions)) >= total {
+			break
+		}
+		page++
 	}
+
+	logger.Info("获取所有权限", zap.Int("total", len(allPermissions)))
+
+	// 获取角色权限授予关系仓库
+	rolePermissionGrantRepo := infraRepo.NewRolePermissionGrantRepository()
 
 	// 为超级管理员角色分配所有权限
 	casbinSvc := casbin_service.NewCasbinService()
 	assignedCount := 0
-	for _, permission := range permissions {
+	grantedCount := 0
+	for _, permission := range allPermissions {
 		// 移除路径前缀 /api（因为中间件会移除这个前缀）
 		resourcePath := strings.TrimPrefix(permission.ResourcePath, "/api")
 
@@ -1062,6 +1089,19 @@ func assignAllPermissionsToAdmin(
 				zap.Error(err))
 			continue
 		}
+
+		// 记录授予关系（超级管理员自己授予给自己，grantorRoleID 和 granteeRoleID 都是超级管理员角色ID）
+		// 这样超级管理员就拥有了所有权限，并且可以授予给其他角色
+		if err := rolePermissionGrantRepo.GrantPermission(ctx, superAdminRole.RoleID, superAdminRole.RoleID, permission.PermissionID); err != nil {
+			logger.Warn("记录超级管理员权限授予关系失败",
+				zap.String("permission", permission.PermissionName),
+				zap.String("permission_id", permission.PermissionID),
+				zap.Error(err))
+			// 继续处理，不中断
+		} else {
+			grantedCount++
+		}
+
 		assignedCount++
 		logger.Debug("为超级管理员添加权限策略",
 			zap.String("role", superAdminRole.RoleKey),
@@ -1071,8 +1111,9 @@ func assignAllPermissionsToAdmin(
 
 	logger.Info("为超级管理员分配权限完成",
 		zap.String("role", superAdminRole.RoleName),
-		zap.Int("total_permissions", len(permissions)),
-		zap.Int("assigned_count", assignedCount))
+		zap.Int("total_permissions", len(allPermissions)),
+		zap.Int("assigned_count", assignedCount),
+		zap.Int("granted_count", grantedCount))
 
 	return nil
 }
@@ -1103,4 +1144,519 @@ func indexOf(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+// initDefaultMenus 初始化默认菜单（从menu_service.go中的getAllMenus提取）
+func initDefaultMenus(ctx context.Context, menuRepo repository.MenuRepository) error {
+	// 定义默认菜单（侧边栏菜单，类型为1）
+	defaultMenus := []*struct {
+		MenuKey     string
+		Title       string
+		Path        string
+		Icon        string
+		ParentID    string
+		Sort        int
+		Permission  string
+		MenuType    string
+		Description string
+		Children    []*struct {
+			MenuKey     string
+			Title       string
+			Path        string
+			Icon        string
+			Sort        int
+			Permission  string
+			Description string
+		}
+	}{
+		{
+			MenuKey:     "dashboard",
+			Title:       "仪表盘",
+			Path:        "",
+			Icon:        "DashboardOutlined",
+			ParentID:    "0",
+			Sort:        1,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "系统仪表盘",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "dashboard-workbench",
+					Title:       "工作台",
+					Path:        "/",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/dashboard/workbench:GET",
+					Description: "工作台页面",
+				},
+				{
+					MenuKey:     "dashboard-analysis",
+					Title:       "分析页",
+					Path:        "/dashboard/analysis",
+					Icon:        "",
+					Sort:        2,
+					Permission:  "/dashboard/analysis:GET",
+					Description: "数据分析页面",
+				},
+			},
+		},
+		{
+			MenuKey:     "user-management",
+			Title:       "用户管理",
+			Path:        "",
+			Icon:        "TeamOutlined",
+			ParentID:    "0",
+			Sort:        2,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "用户管理模块",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "user-list",
+					Title:       "用户列表",
+					Path:        "/user/list",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/user/list:GET",
+					Description: "用户列表页面",
+				},
+				{
+					MenuKey:     "role-list",
+					Title:       "角色管理",
+					Path:        "/role/list",
+					Icon:        "",
+					Sort:        2,
+					Permission:  "/role/list:GET",
+					Description: "角色管理页面",
+				},
+				{
+					MenuKey:     "permission-list",
+					Title:       "权限管理",
+					Path:        "/permission/list",
+					Icon:        "",
+					Sort:        3,
+					Permission:  "/permission/list:GET",
+					Description: "权限管理页面",
+				},
+			},
+		},
+		{
+			MenuKey:     "sms-management",
+			Title:       "短信管理",
+			Path:        "",
+			Icon:        "MessageOutlined",
+			ParentID:    "0",
+			Sort:        3,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "短信管理模块",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "sms-template",
+					Title:       "短信模板",
+					Path:        "/sms/template",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/sms/template/list:GET",
+					Description: "短信模板管理页面",
+				},
+				{
+					MenuKey:     "sms-code",
+					Title:       "短信验证码",
+					Path:        "/sms/code",
+					Icon:        "",
+					Sort:        2,
+					Permission:  "/sms/code/list:GET",
+					Description: "短信验证码管理页面",
+				},
+			},
+		},
+		{
+			MenuKey:     "menu-management",
+			Title:       "菜单管理",
+			Path:        "",
+			Icon:        "MenuOutlined",
+			ParentID:    "0",
+			Sort:        4,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "菜单管理模块",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "menu-list",
+					Title:       "菜单列表",
+					Path:        "/menu/list",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/menu/list:GET",
+					Description: "菜单列表页面",
+				},
+			},
+		},
+		{
+			MenuKey:     "file-management",
+			Title:       "文件管理",
+			Path:        "",
+			Icon:        "FileOutlined",
+			ParentID:    "0",
+			Sort:        5,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "文件管理模块",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "file-list",
+					Title:       "文件列表",
+					Path:        "/file/list",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/file/list:GET",
+					Description: "文件列表页面",
+				},
+				{
+					MenuKey:     "file-storage-config",
+					Title:       "存储配置",
+					Path:        "/file/storage/config",
+					Icon:        "",
+					Sort:        2,
+					Permission:  "/file/storage/config:GET",
+					Description: "文件存储配置页面",
+				},
+			},
+		},
+		{
+			MenuKey:     "system-ops",
+			Title:       "系统运维",
+			Path:        "",
+			Icon:        "ToolOutlined",
+			ParentID:    "0",
+			Sort:        6,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "系统运维模块",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "api-doc",
+					Title:       "接口文档",
+					Path:        "/ops/api-doc",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/swagger:GET",
+					Description: "API接口文档页面",
+				},
+				{
+					MenuKey:     "system-monitor",
+					Title:       "系统监控",
+					Path:        "/ops/monitor",
+					Icon:        "",
+					Sort:        2,
+					Permission:  "/ops/monitor:GET",
+					Description: "系统监控页面",
+				},
+			},
+		},
+		{
+			MenuKey:     "system-settings",
+			Title:       "系统设置",
+			Path:        "",
+			Icon:        "SettingOutlined",
+			ParentID:    "0",
+			Sort:        7,
+			Permission:  "",
+			MenuType:    "1",
+			Description: "系统设置模块",
+			Children: []*struct {
+				MenuKey     string
+				Title       string
+				Path        string
+				Icon        string
+				Sort        int
+				Permission  string
+				Description string
+			}{
+				{
+					MenuKey:     "system-config",
+					Title:       "系统配置",
+					Path:        "/system/config",
+					Icon:        "",
+					Sort:        1,
+					Permission:  "/system/config:GET",
+					Description: "系统配置页面",
+				},
+				{
+					MenuKey:     "system-log",
+					Title:       "操作日志",
+					Path:        "/system/log",
+					Icon:        "",
+					Sort:        2,
+					Permission:  "/system/log:GET",
+					Description: "操作日志页面",
+				},
+			},
+		},
+	}
+
+	// 创建父菜单和子菜单
+	for _, menuDef := range defaultMenus {
+		// 检查父菜单是否已存在
+		existing, err := menuRepo.FindByKey(ctx, menuDef.MenuKey)
+		if err != nil {
+			return fmt.Errorf("查询菜单失败: %w", err)
+		}
+
+		var parentMenuID string
+		if existing == nil {
+			// 创建父菜单
+			parentMenu := &entity.Menu{
+				MenuID:      uuid.New().String(),
+				MenuKey:     menuDef.MenuKey,
+				Title:       menuDef.Title,
+				Path:        menuDef.Path,
+				Icon:        menuDef.Icon,
+				ParentID:    menuDef.ParentID,
+				Sort:        menuDef.Sort,
+				Permission:  "", // 菜单显示不再依赖Permission字段，只基于角色授权
+				MenuType:    menuDef.MenuType,
+				Status:      "1",
+				Description: menuDef.Description,
+				CreatorID:   "system",
+				ModifierID:  "system",
+			}
+
+			if err := menuRepo.Create(ctx, parentMenu); err != nil {
+				if !isDuplicateError(err) {
+					return fmt.Errorf("创建菜单 %s 失败: %w", menuDef.Title, err)
+				}
+				// 如果已存在，重新查询
+				existing, err = menuRepo.FindByKey(ctx, menuDef.MenuKey)
+				if err != nil {
+					return fmt.Errorf("查询菜单失败: %w", err)
+				}
+				if existing != nil {
+					parentMenuID = existing.MenuID
+				}
+			} else {
+				parentMenuID = parentMenu.MenuID
+				logger.Info("创建默认菜单", zap.String("menu", menuDef.Title))
+			}
+		} else {
+			parentMenuID = existing.MenuID
+		}
+
+		// 创建子菜单
+		for _, childDef := range menuDef.Children {
+			existingChild, err := menuRepo.FindByKey(ctx, childDef.MenuKey)
+			if err != nil {
+				return fmt.Errorf("查询子菜单失败: %w", err)
+			}
+			if existingChild == nil {
+				childMenu := &entity.Menu{
+					MenuID:      uuid.New().String(),
+					MenuKey:     childDef.MenuKey,
+					Title:       childDef.Title,
+					Path:        childDef.Path,
+					Icon:        childDef.Icon,
+					ParentID:    parentMenuID,
+					Sort:        childDef.Sort,
+					Permission:  "", // 菜单显示不再依赖Permission字段，只基于角色授权
+					MenuType:    menuDef.MenuType,
+					Status:      "1",
+					Description: childDef.Description,
+					CreatorID:   "system",
+					ModifierID:  "system",
+				}
+
+				if err := menuRepo.Create(ctx, childMenu); err != nil {
+					if !isDuplicateError(err) {
+						return fmt.Errorf("创建子菜单 %s 失败: %w", childDef.Title, err)
+					}
+				} else {
+					logger.Info("创建默认子菜单", zap.String("menu", childDef.Title), zap.String("parent", menuDef.Title))
+				}
+			}
+		}
+	}
+
+	// 初始化用户下拉菜单（类型为2）
+	defaultUserMenus := []*struct {
+		MenuKey     string
+		Title       string
+		Path        string
+		Icon        string
+		ParentID    string
+		Sort        int
+		Permission  string
+		MenuType    string
+		Description string
+	}{
+		{
+			MenuKey:     "profile",
+			Title:       "个人资料",
+			Path:        "/profile",
+			Icon:        "UserOutlined",
+			ParentID:    "0",
+			Sort:        1,
+			Permission:  "",
+			MenuType:    "2",
+			Description: "个人资料菜单",
+		},
+		{
+			MenuKey:     "logout",
+			Title:       "退出登录",
+			Path:        "",
+			Icon:        "LogoutOutlined",
+			ParentID:    "0",
+			Sort:        2,
+			Permission:  "divider", // 使用permission字段标记分隔线
+			MenuType:    "2",
+			Description: "退出登录菜单",
+		},
+	}
+
+	// 创建用户下拉菜单
+	for _, menuDef := range defaultUserMenus {
+		existing, err := menuRepo.FindByKey(ctx, menuDef.MenuKey)
+		if err != nil {
+			return fmt.Errorf("查询用户菜单失败: %w", err)
+		}
+		if existing == nil {
+			userMenu := &entity.Menu{
+				MenuID:      uuid.New().String(),
+				MenuKey:     menuDef.MenuKey,
+				Title:       menuDef.Title,
+				Path:        menuDef.Path,
+				Icon:        menuDef.Icon,
+				ParentID:    menuDef.ParentID,
+				Sort:        menuDef.Sort,
+				Permission:  menuDef.Permission, // 保留Permission字段，用于特殊标记（如"divider"用于分隔线）
+				MenuType:    menuDef.MenuType,
+				Status:      "1",
+				Description: menuDef.Description,
+				CreatorID:   "system",
+				ModifierID:  "system",
+			}
+
+			if err := menuRepo.Create(ctx, userMenu); err != nil {
+				if !isDuplicateError(err) {
+					return fmt.Errorf("创建用户菜单 %s 失败: %w", menuDef.Title, err)
+				}
+			} else {
+				logger.Info("创建默认用户菜单", zap.String("menu", menuDef.Title))
+			}
+		}
+	}
+
+	return nil
+}
+
+// assignAllMenusToAdmin 为超级管理员角色分配所有菜单
+func assignAllMenusToAdmin(
+	ctx context.Context,
+	roleRepo repository.RoleRepository,
+	menuRepo repository.MenuRepository,
+) error {
+	// 获取超级管理员角色
+	superAdminRole, err := roleRepo.FindByKey(ctx, "super_admin")
+	if err != nil {
+		return fmt.Errorf("查询超级管理员角色失败: %w", err)
+	}
+	if superAdminRole == nil {
+		return fmt.Errorf("超级管理员角色不存在")
+	}
+
+	// 获取所有菜单
+	allMenus, err := menuRepo.FindAll(ctx)
+	if err != nil {
+		return fmt.Errorf("查询菜单列表失败: %w", err)
+	}
+
+	// 获取角色菜单关联仓库
+	roleMenuRepo := infraRepo.NewRoleMenuRepository()
+
+	// 为超级管理员角色分配所有菜单
+	assignedCount := 0
+	for _, menu := range allMenus {
+		// 检查是否已分配
+		menuIDs, err := roleMenuRepo.FindMenusByRoleID(ctx, superAdminRole.RoleID)
+		if err == nil {
+			alreadyAssigned := false
+			for _, menuID := range menuIDs {
+				if menuID == menu.MenuID {
+					alreadyAssigned = true
+					break
+				}
+			}
+			if alreadyAssigned {
+				continue
+			}
+		}
+
+		// 分配菜单
+		if err := roleMenuRepo.AssignMenu(ctx, superAdminRole.RoleID, menu.MenuID); err != nil {
+			logger.Warn("为超级管理员分配菜单失败",
+				zap.String("menu", menu.Title),
+				zap.String("menu_id", menu.MenuID),
+				zap.Error(err))
+			continue
+		}
+		assignedCount++
+		logger.Debug("为超级管理员添加菜单",
+			zap.String("role", superAdminRole.RoleKey),
+			zap.String("menu", menu.Title))
+	}
+
+	logger.Info("为超级管理员分配菜单完成",
+		zap.String("role", superAdminRole.RoleName),
+		zap.Int("total_menus", len(allMenus)),
+		zap.Int("assigned_count", assignedCount))
+
+	return nil
 }

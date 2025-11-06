@@ -147,6 +147,7 @@ type PermissionInfo struct {
 	ResourcePath   string `json:"resourcePath"`
 	Method         string `json:"method"`
 	Description    string `json:"description,omitempty"`
+	Category       string `json:"category,omitempty"` // 分类
 }
 
 // FormatTime 格式化时间为字符串

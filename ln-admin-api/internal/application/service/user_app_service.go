@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Light-ink-yht/ln-admin/internal/application/dto"
+	"github.com/Light-ink-yht/ln-admin/internal/domain/constants"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
@@ -29,14 +30,16 @@ var (
 
 type UserAppService struct {
 	userRepo          repository.UserRepository
+	roleRepo          repository.RoleRepository
 	smsAppService     *SMSAppService
 	permissionService *PermissionService
 }
 
 // NewUserAppService 创建用户应用服务
-func NewUserAppService(userRepo repository.UserRepository, smsAppService *SMSAppService, permissionService *PermissionService) *UserAppService {
+func NewUserAppService(userRepo repository.UserRepository, roleRepo repository.RoleRepository, smsAppService *SMSAppService, permissionService *PermissionService) *UserAppService {
 	return &UserAppService{
 		userRepo:          userRepo,
+		roleRepo:          roleRepo,
 		smsAppService:     smsAppService,
 		permissionService: permissionService,
 	}
@@ -53,8 +56,8 @@ func (s *UserAppService) Login(ctx context.Context, phone, password, loginIP str
 		return nil, ErrUserNotFound
 	}
 
-	// 检查用户状态
-	if user.IsDisabled() {
+	// 检查用户状态：只有启用状态的用户才能登录
+	if !user.IsActive() {
 		return nil, ErrUserDisabled
 	}
 
@@ -76,8 +79,21 @@ func (s *UserAppService) Login(ctx context.Context, phone, password, loginIP str
 		return nil, fmt.Errorf("查询用户失败: %w", err)
 	}
 
-	// 生成双Token
-	tokenPair, err := utils.GenerateTokenPair(user.UserID)
+	// 获取用户角色列表
+	roles, err := s.permissionService.GetUserRoles(ctx, user.UserID)
+	if err != nil {
+		logger.Warn("获取用户角色失败", zap.Error(err))
+		roles = []*entity.Role{}
+	}
+
+	// 提取角色标识列表
+	roleKeys := make([]string, 0, len(roles))
+	for _, role := range roles {
+		roleKeys = append(roleKeys, role.RoleKey)
+	}
+
+	// 生成双Token（包含角色信息）
+	tokenPair, err := utils.GenerateTokenPair(user.UserID, roleKeys)
 	if err != nil {
 		return nil, fmt.Errorf("生成Token失败: %w", err)
 	}
@@ -105,8 +121,28 @@ func (s *UserAppService) RefreshToken(ctx context.Context, refreshToken string) 
 		return nil, fmt.Errorf("无效的RefreshToken")
 	}
 
-	// 生成新的双Token
-	tokenPair, err := utils.GenerateTokenPair(claims.UserID)
+	// 重新获取用户角色（确保角色信息是最新的）
+	roles, err := s.permissionService.GetUserRoles(ctx, claims.UserID)
+	var roleKeys []string
+
+	if err != nil {
+		logger.Warn("刷新Token时获取用户角色失败", zap.Error(err))
+		// 如果获取角色失败，使用token中的角色信息（如果存在）
+		if len(claims.Roles) > 0 {
+			roleKeys = claims.Roles
+		} else {
+			roleKeys = []string{}
+		}
+	} else {
+		// 提取角色标识列表
+		roleKeys = make([]string, 0, len(roles))
+		for _, role := range roles {
+			roleKeys = append(roleKeys, role.RoleKey)
+		}
+	}
+
+	// 生成新的双Token（包含角色信息）
+	tokenPair, err := utils.GenerateTokenPair(claims.UserID, roleKeys)
 	if err != nil {
 		return nil, fmt.Errorf("生成Token失败: %w", err)
 	}
@@ -353,9 +389,23 @@ func (s *UserAppService) CreateUser(ctx context.Context, req *dto.CreateUserRequ
 		return nil, fmt.Errorf("创建用户失败: %w", err)
 	}
 
-	// 分配角色
+	// 分配角色（过滤掉超级管理员角色）
 	if len(req.RoleIds) > 0 {
+		// 获取超级管理员角色ID
+		superAdminRole, err := s.roleRepo.FindByKey(ctx, constants.SuperAdminRoleKey)
+		if err != nil {
+			logger.Warn("查询超级管理员角色失败", zap.Error(err))
+		}
+
 		for _, roleID := range req.RoleIds {
+			// 不允许分配超级管理员角色
+			if superAdminRole != nil && roleID == superAdminRole.RoleID {
+				logger.Warn("不允许为用户分配超级管理员角色",
+					zap.String("user_id", userID),
+					zap.String("role_id", roleID))
+				continue
+			}
+
 			if err := s.permissionService.AssignRoleToUser(ctx, userID, roleID); err != nil {
 				logger.Warn("为用户分配角色失败",
 					zap.String("user_id", userID),
@@ -431,8 +481,26 @@ func (s *UserAppService) UpdateUser(ctx context.Context, userID string, req *dto
 		return nil, fmt.Errorf("更新用户失败: %w", err)
 	}
 
-	// 更新角色（如果提供了）
+	// 更新角色（如果提供了，过滤掉超级管理员角色）
 	if req.RoleIds != nil {
+		// 获取超级管理员角色ID
+		superAdminRole, err := s.roleRepo.FindByKey(ctx, constants.SuperAdminRoleKey)
+		if err != nil {
+			logger.Warn("查询超级管理员角色失败", zap.Error(err))
+		}
+
+		// 过滤掉超级管理员角色
+		filteredRoleIds := make([]string, 0)
+		for _, roleID := range req.RoleIds {
+			if superAdminRole != nil && roleID == superAdminRole.RoleID {
+				logger.Warn("不允许为用户分配超级管理员角色",
+					zap.String("user_id", userID),
+					zap.String("role_id", roleID))
+				continue
+			}
+			filteredRoleIds = append(filteredRoleIds, roleID)
+		}
+
 		// 获取用户当前角色
 		currentRoles, err := s.permissionService.GetUserRoles(ctx, userID)
 		if err != nil {
@@ -445,7 +513,7 @@ func (s *UserAppService) UpdateUser(ctx context.Context, userID string, req *dto
 			}
 
 			newRoleIDs := make(map[string]bool)
-			for _, roleID := range req.RoleIds {
+			for _, roleID := range filteredRoleIds {
 				newRoleIDs[roleID] = true
 				// 如果角色不在当前角色中，则添加
 				if !currentRoleIDs[roleID] {
@@ -458,9 +526,16 @@ func (s *UserAppService) UpdateUser(ctx context.Context, userID string, req *dto
 				}
 			}
 
-			// 移除不在新角色列表中的角色
+			// 移除不在新角色列表中的角色（但保留超级管理员角色）
 			for _, role := range currentRoles {
 				if !newRoleIDs[role.RoleID] {
+					// 不允许移除超级管理员角色（如果用户是超级管理员）
+					if superAdminRole != nil && role.RoleID == superAdminRole.RoleID {
+						logger.Warn("不允许移除用户的超级管理员角色",
+							zap.String("user_id", userID),
+							zap.String("role_id", role.RoleID))
+						continue
+					}
 					if err := s.permissionService.RemoveRoleFromUser(ctx, userID, role.RoleID); err != nil {
 						logger.Warn("移除用户角色失败",
 							zap.String("user_id", userID),
@@ -490,6 +565,11 @@ func (s *UserAppService) DeleteUser(ctx context.Context, userID string) error {
 	}
 	if user == nil {
 		return ErrUserNotFound
+	}
+
+	// 不允许删除超级管理员账号
+	if user.Phone != nil && *user.Phone == constants.SuperAdminPhone {
+		return fmt.Errorf("不允许删除超级管理员账号")
 	}
 
 	// 获取用户角色并移除
@@ -579,6 +659,7 @@ func (s *UserAppService) GetUserDetail(ctx context.Context, userID string) (*dto
 								ResourcePath:   permission.ResourcePath,
 								Method:         permission.Method,
 								Description:    permission.Description,
+								Category:       permission.Category,
 							}
 						} else {
 							// 如果数据库中找不到，使用简化信息
@@ -616,6 +697,7 @@ func (s *UserAppService) GetUserDetail(ctx context.Context, userID string) (*dto
 							ResourcePath:   permission.ResourcePath,
 							Method:         permission.Method,
 							Description:    permission.Description,
+							Category:       permission.Category,
 						}
 					} else {
 						// 如果数据库中找不到，使用简化信息
@@ -697,8 +779,8 @@ func (s *UserAppService) toUserResponse(user *entity.User) *dto.UserResponse {
 	}
 }
 
-// GrantPermissions 给用户授权（直接分配权限）
-func (s *UserAppService) GrantPermissions(ctx context.Context, userID string, permissionIDs []string) error {
+// GrantPermissions 给用户授权（直接分配权限，支持层级授权检查）
+func (s *UserAppService) GrantPermissions(ctx context.Context, grantorUserID, userID string, permissionIDs []string) error {
 	// 检查用户是否存在
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
@@ -706,6 +788,25 @@ func (s *UserAppService) GrantPermissions(ctx context.Context, userID string, pe
 	}
 	if user == nil {
 		return ErrUserNotFound
+	}
+
+	// 检查授予者是否有权限授予这些权限（如果不是超级管理员）
+	isSuperAdmin, err := s.permissionService.IsSuperAdmin(ctx, grantorUserID)
+	if err != nil {
+		return fmt.Errorf("检查超级管理员失败: %w", err)
+	}
+
+	if !isSuperAdmin {
+		// 检查每个权限是否可以被授予
+		for _, permissionID := range permissionIDs {
+			canGrant, err := s.permissionService.CanGrantPermission(ctx, grantorUserID, permissionID)
+			if err != nil {
+				return fmt.Errorf("检查授权权限失败: %w", err)
+			}
+			if !canGrant {
+				return fmt.Errorf("没有权限授予权限ID: %s", permissionID)
+			}
+		}
 	}
 
 	// 调用权限服务直接为用户分配权限

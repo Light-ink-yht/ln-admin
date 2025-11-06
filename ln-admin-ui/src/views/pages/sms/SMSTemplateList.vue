@@ -194,7 +194,7 @@ const handleDeleteTemplate = (record: SMSTemplate) => {
                 dataListRef.value?.refresh()
             } catch (error: any) {
                 console.error('删除失败:', error)
-                message.error(error.message || '删除失败')
+                // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             }
         },
     })

@@ -12,19 +12,19 @@ const TableCommentAA09 = "菜单表：定义系统中的菜单项，包括侧边
 // AA09 菜单表
 type AA09 struct {
 	gorm.Model
-	AAI001 string `gorm:"column:AAI001;type:varchar(50);primaryKey;comment:菜单ID"`                 // 菜单ID, 主键
-	AAI002 string `gorm:"column:AAI002;type:varchar(100);uniqueIndex;comment:菜单标识"`               // 菜单标识（唯一）
-	AAI003 string `gorm:"column:AAI003;type:varchar(100);comment:菜单标题"`                           // 菜单标题
-	AAI004 string `gorm:"column:AAI004;type:varchar(200);comment:路由路径"`                           // 路由路径
-	AAI005 string `gorm:"column:AAI005;type:varchar(100);comment:图标名称"`                           // 图标名称
-	AAI006 string `gorm:"column:AAI006;type:varchar(50);comment:父菜单ID"`                           // 父菜单ID（用于构建菜单树）
-	AAI007 int    `gorm:"column:AAI007;type:int;default:0;comment:排序号"`                           // 排序号
-	AAI008 string `gorm:"column:AAI008;type:varchar(200);comment:权限标识"`                           // 权限标识（关联权限表）
-	AAI009 string `gorm:"column:AAI009;type:varchar(10);default:'1';comment:菜单类型 1 侧边栏菜单 2 用户菜单"` // 菜单类型
-	AAI010 string `gorm:"column:AAI010;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"`        // 状态
-	AAI011 string `gorm:"column:AAI011;type:varchar(500);comment:菜单描述"`                           // 菜单描述
-	AAI012 string `gorm:"column:AAI012;type:varchar(50);comment:创建人"`                             // 创建人
-	AAI013 string `gorm:"column:AAI013;type:varchar(50);comment:修改人"`                             // 修改人
+	AAI001 string `gorm:"column:AAI001;type:varchar(50);primaryKey;comment:菜单ID"`                                                        // 菜单ID, 主键
+	AAI002 string `gorm:"column:AAI002;type:varchar(100);uniqueIndex;comment:菜单标识"`                                                      // 菜单标识（唯一）
+	AAI003 string `gorm:"column:AAI003;type:varchar(100);comment:菜单标题"`                                                                  // 菜单标题
+	AAI004 string `gorm:"column:AAI004;type:varchar(200);comment:路由路径"`                                                                  // 路由路径
+	AAI005 string `gorm:"column:AAI005;type:varchar(100);comment:图标名称"`                                                                  // 图标名称
+	AAI006 string `gorm:"column:AAI006;type:varchar(50);index;index:idx_parent_type,priority:1;comment:父菜单ID"`                           // 父菜单ID（用于构建菜单树）
+	AAI007 int    `gorm:"column:AAI007;type:int;default:0;comment:排序号"`                                                                  // 排序号
+	AAI008 string `gorm:"column:AAI008;type:varchar(200);comment:权限标识"`                                                                  // 权限标识（关联权限表）
+	AAI009 string `gorm:"column:AAI009;type:varchar(10);default:'1';index;index:idx_parent_type,priority:2;comment:菜单类型 1 侧边栏菜单 2 用户菜单"` // 菜单类型
+	AAI010 string `gorm:"column:AAI010;type:varchar(10);default:'1';index;comment:状态 1 启用，2 禁用"`                                         // 状态
+	AAI011 string `gorm:"column:AAI011;type:varchar(500);comment:菜单描述"`                                                                  // 菜单描述
+	AAI012 string `gorm:"column:AAI012;type:varchar(50);comment:创建人"`                                                                    // 创建人
+	AAI013 string `gorm:"column:AAI013;type:varchar(50);comment:修改人"`                                                                    // 修改人
 }
 
 // TableName 指定表名

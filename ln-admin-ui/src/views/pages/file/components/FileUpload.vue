@@ -63,7 +63,7 @@ const beforeUpload: UploadProps['beforeUpload'] = (file) => {
     // 检查文件大小
     const maxSizeBytes = props.maxSize * 1024 * 1024
     if (file.size > maxSizeBytes) {
-        message.error(`文件大小不能超过 ${props.maxSize}MB`)
+        message.warning(`文件大小不能超过 ${props.maxSize}MB`)
         return false
     }
     return true
@@ -84,13 +84,13 @@ const customRequest: UploadProps['customRequest'] = async (options) => {
             const error = new Error(response.msg || '上传失败')
             onError?.(error)
             emit('error', error)
-            message.error(response.msg || '上传失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         }
     } catch (error: any) {
         console.error('上传文件失败:', error)
         onError?.(error)
         emit('error', error)
-        message.error(error.message || '上传失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         uploading.value = false
     }

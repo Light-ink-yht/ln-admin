@@ -129,13 +129,13 @@ const beforeUpload: UploadProps['beforeUpload'] = (file) => {
     // 检查文件大小
     const maxSizeBytes = props.maxSize * 1024 * 1024
     if (file.size > maxSizeBytes) {
-        message.error(`文件大小不能超过 ${props.maxSize}MB`)
+        message.warning(`文件大小不能超过 ${props.maxSize}MB`)
         return false
     }
 
     // 检查数量限制
     if (props.multiple && fileList.value.length >= props.maxCount) {
-        message.error(`最多只能上传 ${props.maxCount} 个文件！`)
+        message.warning(`最多只能上传 ${props.maxCount} 个文件！`)
         return false
     }
 
@@ -189,7 +189,7 @@ const customRequest: UploadProps['customRequest'] = async (options) => {
             }
             onError?.(error)
             emit('upload-error', error, uploadFile as UploadFile)
-            message.error(response.msg || '上传失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         }
     } catch (error: any) {
         console.error('上传文件失败:', error)
@@ -199,7 +199,7 @@ const customRequest: UploadProps['customRequest'] = async (options) => {
         }
         onError?.(error)
         emit('upload-error', error, uploadFile as UploadFile)
-        message.error(error.message || '上传失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         uploading.value = false
     }
@@ -223,7 +223,7 @@ const downloadFile = async (fileResponse: FileResponse) => {
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
     } catch (error: any) {
-        message.error(error.message || '下载失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 </script>

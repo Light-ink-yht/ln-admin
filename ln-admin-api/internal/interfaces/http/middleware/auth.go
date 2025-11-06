@@ -59,8 +59,11 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		// 将用户ID存储到上下文中
+		// 将用户ID和角色信息存储到上下文中
 		c.Set("user_id", claims.UserID)
+		if len(claims.Roles) > 0 {
+			c.Set("user_roles", claims.Roles)
+		}
 		c.Next()
 	}
 }

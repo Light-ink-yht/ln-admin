@@ -132,7 +132,7 @@ const loadMenuTree = async () => {
         }
     } catch (error: any) {
         console.error('加载菜单树失败:', error)
-        message.error('加载菜单树失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         menusLoading.value = false
     }
@@ -163,14 +163,14 @@ const loadRoleMenus = async () => {
         }
     } catch (error: any) {
         console.error('加载角色菜单失败:', error)
-        message.error('加载角色菜单失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 
 // 提交授权
 const handleSubmit = async () => {
     if (!props.roleId) {
-        message.error('角色ID不能为空')
+        message.warning('角色ID不能为空')
         return
     }
 
@@ -182,7 +182,7 @@ const handleSubmit = async () => {
         handleCancel()
     } catch (error: any) {
         console.error('授权失败:', error)
-        message.error(error.message || '授权失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         loading.value = false
     }

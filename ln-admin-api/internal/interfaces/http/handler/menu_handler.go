@@ -53,13 +53,28 @@ func (h *MenuHandler) GetSidebarMenus(c *gin.Context) {
 
 	ctx := context.Background()
 
+	// 从context中获取角色信息（如果存在）
+	var roleKeys []string
+	if rolesFromContext, exists := c.Get("user_roles"); exists {
+		if rolesList, ok := rolesFromContext.([]string); ok {
+			roleKeys = rolesList
+		}
+	}
+
 	logger.Info("开始获取侧边栏菜单",
 		zap.String("操作", "获取侧边栏菜单"),
 		zap.String("用户ID", userIDStr),
+		zap.Strings("角色", roleKeys),
 		zap.String("ip", c.ClientIP()))
 
-	// 获取菜单
-	menus, err := h.menuService.GetSidebarMenus(ctx, userIDStr)
+	// 获取菜单（如果提供了角色信息，则使用；否则从数据库查询）
+	var menus []dto.MenuItem
+	var err error
+	if len(roleKeys) > 0 {
+		menus, err = h.menuService.GetSidebarMenus(ctx, userIDStr, roleKeys)
+	} else {
+		menus, err = h.menuService.GetSidebarMenus(ctx, userIDStr)
+	}
 	if err != nil {
 		logger.Error("获取侧边栏菜单失败",
 			zap.String("操作", "获取侧边栏菜单"),
@@ -111,13 +126,28 @@ func (h *MenuHandler) GetUserMenus(c *gin.Context) {
 
 	ctx := context.Background()
 
+	// 从context中获取角色信息（如果存在）
+	var roleKeys []string
+	if rolesFromContext, exists := c.Get("user_roles"); exists {
+		if rolesList, ok := rolesFromContext.([]string); ok {
+			roleKeys = rolesList
+		}
+	}
+
 	logger.Info("开始获取用户菜单",
 		zap.String("操作", "获取用户菜单"),
 		zap.String("用户ID", userIDStr),
+		zap.Strings("角色", roleKeys),
 		zap.String("ip", c.ClientIP()))
 
-	// 获取菜单
-	menus, err := h.menuService.GetUserMenus(ctx, userIDStr)
+	// 获取菜单（如果提供了角色信息，则使用；否则从数据库查询）
+	var menus []dto.UserMenuItem
+	var err error
+	if len(roleKeys) > 0 {
+		menus, err = h.menuService.GetUserMenus(ctx, userIDStr, roleKeys)
+	} else {
+		menus, err = h.menuService.GetUserMenus(ctx, userIDStr)
+	}
 	if err != nil {
 		logger.Error("获取用户菜单失败",
 			zap.String("操作", "获取用户菜单"),

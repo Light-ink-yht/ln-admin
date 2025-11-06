@@ -12,8 +12,9 @@ const TableCommentAA12 = "角色菜单关联表：存储角色与菜单之间的
 // AA12 角色菜单关联表
 type AA12 struct {
 	gorm.Model
-	AAL001 string `gorm:"column:AAL001;type:varchar(50);index;comment:角色ID"` // 角色ID
-	AAL002 string `gorm:"column:AAL002;type:varchar(50);index;comment:菜单ID"` // 菜单ID
+	AAL001 string `gorm:"column:AAL001;type:varchar(50);index;index:idx_role_menu,priority:1;comment:角色ID"` // 角色ID
+	AAL002 string `gorm:"column:AAL002;type:varchar(50);index;index:idx_role_menu,priority:2;comment:菜单ID"` // 菜单ID
+	// 注意：唯一联合索引需要在数据库迁移时手动创建，或在GORM中通过Migrate方法创建
 }
 
 // TableName 指定表名

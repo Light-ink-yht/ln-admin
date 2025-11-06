@@ -12,19 +12,19 @@ const TableCommentAA11 = "S3存储配置表：存储S3云存储的配置信息�
 // AA11 S3配置数据库实体（与数据库表对应）
 type AA11 struct {
 	gorm.Model
-	AAK001 string     `gorm:"column:AAK001;type:varchar(50);primaryKey;comment:配置ID"`                    // 配置ID, 主键
-	AAK002 string     `gorm:"column:AAK002;type:varchar(10);default:'local';comment:存储类型 local本地 s3云存储"` // 存储类型
-	AAK003 string     `gorm:"column:AAK003;type:varchar(100);comment:存储桶名称"`                             // 存储桶名称
-	AAK004 string     `gorm:"column:AAK004;type:varchar(50);comment:区域"`                                 // 区域
-	AAK005 string     `gorm:"column:AAK005;type:varchar(200);comment:端点地址"`                              // 端点地址（可选，用于兼容S3兼容服务）
-	AAK006 string     `gorm:"column:AAK006;type:varchar(100);comment:访问密钥ID"`                            // 访问密钥ID
-	AAK007 string     `gorm:"column:AAK007;type:varchar(200);comment:访问密钥"`                              // 访问密钥
-	AAK008 string     `gorm:"column:AAK008;type:varchar(500);comment:基础访问URL"`                           // 基础访问URL（CDN或自定义域名，可选）
-	AAK009 string     `gorm:"column:AAK009;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"`           // 状态
-	AAK010 string     `gorm:"column:AAK010;type:varchar(500);comment:备注"`                                // 备注
-	AAK011 string     `gorm:"column:AAK011;type:varchar(50);comment:创建人"`                                // 创建人
-	AAK012 string     `gorm:"column:AAK012;type:varchar(50);comment:修改人"`                                // 修改人
-	AAK013 *time.Time `gorm:"column:AAK013;type:datetime;comment:最后修改时间"`                                // 最后修改时间
+	AAK001 string     `gorm:"column:AAK001;type:varchar(50);primaryKey;comment:配置ID"`                                                              // 配置ID, 主键
+	AAK002 string     `gorm:"column:AAK002;type:varchar(10);default:'local';index;index:idx_storage_status,priority:1;comment:存储类型 local本地 s3云存储"` // 存储类型
+	AAK003 string     `gorm:"column:AAK003;type:varchar(100);comment:存储桶名称"`                                                                       // 存储桶名称
+	AAK004 string     `gorm:"column:AAK004;type:varchar(50);comment:区域"`                                                                           // 区域
+	AAK005 string     `gorm:"column:AAK005;type:varchar(200);comment:端点地址"`                                                                        // 端点地址（可选，用于兼容S3兼容服务）
+	AAK006 string     `gorm:"column:AAK006;type:varchar(100);comment:访问密钥ID"`                                                                      // 访问密钥ID
+	AAK007 string     `gorm:"column:AAK007;type:varchar(200);comment:访问密钥"`                                                                        // 访问密钥
+	AAK008 string     `gorm:"column:AAK008;type:varchar(500);comment:基础访问URL"`                                                                     // 基础访问URL（CDN或自定义域名，可选）
+	AAK009 string     `gorm:"column:AAK009;type:varchar(10);default:'1';index;index:idx_storage_status,priority:2;comment:状态 1 启用，2 禁用"`           // 状态
+	AAK010 string     `gorm:"column:AAK010;type:varchar(500);comment:备注"`                                                                          // 备注
+	AAK011 string     `gorm:"column:AAK011;type:varchar(50);comment:创建人"`                                                                          // 创建人
+	AAK012 string     `gorm:"column:AAK012;type:varchar(50);comment:修改人"`                                                                          // 修改人
+	AAK013 *time.Time `gorm:"column:AAK013;type:datetime;comment:最后修改时间"`                                                                          // 最后修改时间
 }
 
 // TableName 指定表名

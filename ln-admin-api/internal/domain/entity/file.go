@@ -12,18 +12,18 @@ const TableCommentAA10File = "文件表：存储系统上传的文件信息，�
 // AA10File 文件数据库实体（与数据库表AA10对应）
 type AA10File struct {
 	gorm.Model
-	AAJ001 string     `gorm:"column:AAJ001;type:varchar(50);primaryKey;comment:文件ID"`                    // 文件ID, 主键
-	AAJ002 string     `gorm:"column:AAJ002;type:varchar(255);not null;comment:文件名"`                      // 文件名
-	AAJ003 string     `gorm:"column:AAJ003;type:varchar(255);not null;comment:原始文件名"`                    // 原始文件名
-	AAJ004 string     `gorm:"column:AAJ004;type:varchar(500);not null;comment:文件路径"`                     // 文件路径（本地路径或S3路径）
-	AAJ005 string     `gorm:"column:AAJ005;type:varchar(20);default:'local';comment:存储类型 local本地 s3云存储"` // 存储类型
-	AAJ006 int64      `gorm:"column:AAJ006;type:bigint;comment:文件大小(字节)"`                                // 文件大小
-	AAJ007 string     `gorm:"column:AAJ007;type:varchar(100);comment:MIME类型"`                            // MIME类型
-	AAJ008 string     `gorm:"column:AAJ008;type:varchar(20);comment:文件扩展名"`                              // 文件扩展名
-	AAJ009 string     `gorm:"column:AAJ009;type:varchar(50);comment:文件分类"`                               // 文件分类（image/document/video/audio/archive/other）
-	AAJ010 string     `gorm:"column:AAJ010;type:varchar(50);comment:创建人"`                                // 创建人
-	AAJ011 string     `gorm:"column:AAJ011;type:varchar(50);comment:修改人"`                                // 修改人
-	AAJ012 *time.Time `gorm:"column:AAJ012;type:datetime;comment:上传时间"`                                  // 上传时间
+	AAJ001 string     `gorm:"column:AAJ001;type:varchar(50);primaryKey;comment:文件ID"`                                                                // 文件ID, 主键
+	AAJ002 string     `gorm:"column:AAJ002;type:varchar(255);not null;comment:文件名"`                                                                  // 文件名
+	AAJ003 string     `gorm:"column:AAJ003;type:varchar(255);not null;comment:原始文件名"`                                                                // 原始文件名
+	AAJ004 string     `gorm:"column:AAJ004;type:varchar(500);not null;comment:文件路径"`                                                                 // 文件路径（本地路径或S3路径）
+	AAJ005 string     `gorm:"column:AAJ005;type:varchar(20);default:'local';index;index:idx_storage_category,priority:1;comment:存储类型 local本地 s3云存储"` // 存储类型
+	AAJ006 int64      `gorm:"column:AAJ006;type:bigint;comment:文件大小(字节)"`                                                                            // 文件大小
+	AAJ007 string     `gorm:"column:AAJ007;type:varchar(100);comment:MIME类型"`                                                                        // MIME类型
+	AAJ008 string     `gorm:"column:AAJ008;type:varchar(20);comment:文件扩展名"`                                                                          // 文件扩展名
+	AAJ009 string     `gorm:"column:AAJ009;type:varchar(50);index;index:idx_storage_category,priority:2;comment:文件分类"`                               // 文件分类（image/document/video/audio/archive/other）
+	AAJ010 string     `gorm:"column:AAJ010;type:varchar(50);index;comment:创建人"`                                                                      // 创建人
+	AAJ011 string     `gorm:"column:AAJ011;type:varchar(50);comment:修改人"`                                                                            // 修改人
+	AAJ012 *time.Time `gorm:"column:AAJ012;type:datetime;index;comment:上传时间"`                                                                        // 上传时间
 }
 
 // TableName 指定表名

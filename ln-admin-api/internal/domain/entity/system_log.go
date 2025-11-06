@@ -12,20 +12,20 @@ const TableCommentAA03 = "系统日志表：记录系统的操作日志、异常
 // AA03 系统日志表
 type AA03 struct {
 	gorm.Model
-	AAC001 string     `gorm:"column:AAC001;type:varchar(50);comment:日志ID, 主键"`   // 日志ID, 主键
-	AAC002 string     `gorm:"column:AAC002;type:varchar(20);index;comment:日志级别"` // 日志级别 (debug, info, warn, error)
-	AAC003 string     `gorm:"column:AAC003;type:varchar(200);comment:模块名称"`      // 模块名称
-	AAC004 string     `gorm:"column:AAC004;type:varchar(100);comment:操作类型"`      // 操作类型 (login, register, create, update, delete等)
-	AAC005 string     `gorm:"column:AAC005;type:text;comment:日志内容"`              // 日志内容
-	AAC006 string     `gorm:"column:AAC006;type:varchar(50);comment:用户ID"`       // 用户ID
-	AAC007 string     `gorm:"column:AAC007;type:varchar(50);comment:IP地址"`       // IP地址
-	AAC008 string     `gorm:"column:AAC008;type:varchar(500);comment:请求路径"`      // 请求路径
-	AAC009 string     `gorm:"column:AAC009;type:varchar(20);comment:请求方法"`       // 请求方法 (GET, POST等)
-	AAC010 int        `gorm:"column:AAC010;type:int;comment:响应状态码"`              // 响应状态码
-	AAC011 string     `gorm:"column:AAC011;type:varchar(500);comment:用户代理"`      // 用户代理
-	AAC012 string     `gorm:"column:AAC012;type:varchar(200);comment:错误信息"`      // 错误信息
-	AAC013 *time.Time `gorm:"column:AAC013;type:datetime;index;comment:日志时间"`    // 日志时间
-	AAC014 string     `gorm:"column:AAC014;type:varchar(50);comment:创建人"`        // 创建人
+	AAC001 string     `gorm:"column:AAC001;type:varchar(50);comment:日志ID, 主键"`                                   // 日志ID, 主键
+	AAC002 string     `gorm:"column:AAC002;type:varchar(20);index;index:idx_level_time,priority:1;comment:日志级别"` // 日志级别 (debug, info, warn, error)
+	AAC003 string     `gorm:"column:AAC003;type:varchar(200);comment:模块名称"`                                      // 模块名称
+	AAC004 string     `gorm:"column:AAC004;type:varchar(100);index;comment:操作类型"`                                // 操作类型 (login, register, create, update, delete等)
+	AAC005 string     `gorm:"column:AAC005;type:text;comment:日志内容"`                                              // 日志内容
+	AAC006 string     `gorm:"column:AAC006;type:varchar(50);index;comment:用户ID"`                                 // 用户ID
+	AAC007 string     `gorm:"column:AAC007;type:varchar(50);comment:IP地址"`                                       // IP地址
+	AAC008 string     `gorm:"column:AAC008;type:varchar(500);comment:请求路径"`                                      // 请求路径
+	AAC009 string     `gorm:"column:AAC009;type:varchar(20);comment:请求方法"`                                       // 请求方法 (GET, POST等)
+	AAC010 int        `gorm:"column:AAC010;type:int;comment:响应状态码"`                                              // 响应状态码
+	AAC011 string     `gorm:"column:AAC011;type:varchar(500);comment:用户代理"`                                      // 用户代理
+	AAC012 string     `gorm:"column:AAC012;type:varchar(200);comment:错误信息"`                                      // 错误信息
+	AAC013 *time.Time `gorm:"column:AAC013;type:datetime;index;index:idx_level_time,priority:2;comment:日志时间"`    // 日志时间
+	AAC014 string     `gorm:"column:AAC014;type:varchar(50);comment:创建人"`                                        // 创建人
 }
 
 // TableName 指定表名

@@ -97,7 +97,7 @@ export const authApi = {
         user: UserInfo
     }>> {
         return request.post('/user/login', params, {
-            showSuccessMessage: true,
+            showSuccessMessage: false, // 在组件中显示自定义消息，避免重复
         })
     },
 

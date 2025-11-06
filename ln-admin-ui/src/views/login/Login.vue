@@ -334,7 +334,7 @@ const sendSms = async (type: 'register' | 'forgot') => {
     const phone = type === 'register' ? registerForm.value.phone : forgotForm.value.phone
 
     if (!/^1[3-9]\d{9}$/.test(phone)) {
-        message.error('请输入正确的手机号')
+        message.warning('请输入正确的手机号')
         return
     }
 
@@ -391,7 +391,8 @@ const handleLogin = async () => {
                 res.data.accessToken,
                 res.data.refreshToken
             )
-            message.success('登录成功')
+            // 显示登录成功消息（API已设置 showSuccessMessage: false，避免重复）
+            message.success('登录成功, 欢迎回来')
         }
         
         setTimeout(() => {
@@ -443,22 +444,80 @@ onMounted(() => {
 <style scoped lang="less">
 .login-container {
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 15s ease infinite;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
+    position: relative;
+    overflow: hidden;
+
+    // 添加装饰性几何图形
+    &::before {
+        content: '';
+        position: absolute;
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        top: -250px;
+        right: -250px;
+        animation: float 20s ease-in-out infinite;
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        bottom: -200px;
+        left: -200px;
+        animation: float 25s ease-in-out infinite reverse;
+    }
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20px, 20px) rotate(240deg);
+    }
 }
 
 .login-wrapper {
     width: 100%;
     max-width: 1200px;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
     display: grid;
     grid-template-columns: 1fr 1fr;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 .login-left {
@@ -610,11 +669,24 @@ onMounted(() => {
 // 暗色模式适配
 body.dark-mode {
     .login-container {
-        background: linear-gradient(135deg, #1f1f1f 0%, #000 100%);
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        background-size: 200% 200%;
+        
+        &::before {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        &::after {
+            background: rgba(255, 255, 255, 0.03);
+        }
     }
 
     .login-wrapper {
         background: rgba(30, 30, 30, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     }
 
     .form-footer a {
@@ -624,8 +696,43 @@ body.dark-mode {
 
 // 响应式设计
 @media (max-width: 768px) {
+    .login-container {
+        padding: 0 !important;
+        align-items: flex-start !important;
+        min-height: 100vh !important;
+        // 保持渐变背景动画
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
+        background-size: 200% 200% !important;
+        animation: gradientShift 15s ease infinite !important;
+        
+        &::before,
+        &::after {
+            display: none;
+        }
+    }
+
     .login-wrapper {
         grid-template-columns: 1fr;
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        min-height: 100vh;
+        background: rgba(255, 255, 255, 0.75) !important;
+        backdrop-filter: blur(20px);
+    }
+    
+    body.dark-mode {
+        .login-container {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+            background-size: 200% 200% !important;
+            animation: gradientShift 15s ease infinite !important;
+        }
+        
+        .login-wrapper {
+            background: rgba(30, 30, 30, 0.75) !important;
+            backdrop-filter: blur(20px);
+        }
     }
 
     .login-left {
@@ -633,7 +740,30 @@ body.dark-mode {
     }
 
     .login-right {
-        padding: 40px 30px;
+        padding: 20px 16px;
+        width: 100%;
+        min-height: 100vh;
+        background: transparent !important;
+    }
+
+    .form-wrapper {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .login-tabs {
+        :deep(.ant-tabs-nav) {
+            margin-bottom: 20px;
+        }
+
+        :deep(.ant-tabs-tab) {
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+
+        :deep(.ant-tabs-content-holder) {
+            min-height: auto;
+        }
     }
 
     .brand-title {

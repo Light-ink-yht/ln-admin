@@ -12,16 +12,16 @@ const TableCommentAA08 = "短信模板表：存储短信发送的模板信息，
 // AA08 短信模板表
 type AA08 struct {
 	gorm.Model
-	AAH001 string `gorm:"column:AAH001;type:varchar(50);primaryKey;comment:模板ID"`          // 模板ID, 主键
-	AAH002 string `gorm:"column:AAH002;type:varchar(50);uniqueIndex;comment:模板类型"`         // 模板类型（register, forgot等）
-	AAH003 string `gorm:"column:AAH003;type:varchar(100);comment:模板名称"`                    // 模板名称
-	AAH004 string `gorm:"column:AAH004;type:varchar(200);comment:腾讯云模板ID"`                 // 腾讯云模板ID
-	AAH005 string `gorm:"column:AAH005;type:varchar(100);comment:短信签名/标题"`                 // 短信签名/标题
-	AAH006 string `gorm:"column:AAH006;type:text;comment:模板内容"`                            // 模板内容（支持占位符，如 {code}）
-	AAH007 string `gorm:"column:AAH007;type:varchar(500);comment:模板描述"`                    // 模板描述
-	AAH008 string `gorm:"column:AAH008;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"` // 状态
-	AAH009 string `gorm:"column:AAH009;type:varchar(50);comment:创建人"`                      // 创建人
-	AAH010 string `gorm:"column:AAH010;type:varchar(50);comment:修改人"`                      // 修改人
+	AAH001 string `gorm:"column:AAH001;type:varchar(50);primaryKey;comment:模板ID"`                // 模板ID, 主键
+	AAH002 string `gorm:"column:AAH002;type:varchar(50);uniqueIndex;comment:模板类型"`               // 模板类型（register, forgot等）
+	AAH003 string `gorm:"column:AAH003;type:varchar(100);comment:模板名称"`                          // 模板名称
+	AAH004 string `gorm:"column:AAH004;type:varchar(200);comment:腾讯云模板ID"`                       // 腾讯云模板ID
+	AAH005 string `gorm:"column:AAH005;type:varchar(100);comment:短信签名/标题"`                       // 短信签名/标题
+	AAH006 string `gorm:"column:AAH006;type:text;comment:模板内容"`                                  // 模板内容（支持占位符，如 {code}）
+	AAH007 string `gorm:"column:AAH007;type:varchar(500);comment:模板描述"`                          // 模板描述
+	AAH008 string `gorm:"column:AAH008;type:varchar(10);default:'1';index;comment:状态 1 启用，2 禁用"` // 状态
+	AAH009 string `gorm:"column:AAH009;type:varchar(50);comment:创建人"`                            // 创建人
+	AAH010 string `gorm:"column:AAH010;type:varchar(50);comment:修改人"`                            // 修改人
 }
 
 // TableName 指定表名

@@ -10,7 +10,9 @@ import (
 	"github.com/Light-ink-yht/ln-admin/internal/domain/entity"
 	"github.com/Light-ink-yht/ln-admin/internal/domain/repository"
 	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/casbin"
+	"github.com/Light-ink-yht/ln-admin/internal/infrastructure/logger"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 var (
@@ -181,11 +183,27 @@ func (s *MenuService) getAllMenus() []dto.MenuItem {
 }
 
 // GetSidebarMenus 获取侧边栏菜单（根据用户角色过滤）
-func (s *MenuService) GetSidebarMenus(ctx context.Context, userID string) ([]dto.MenuItem, error) {
-	// 获取用户角色
-	roles, err := s.permissionService.GetUserRoles(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户角色失败: %w", err)
+// roleKeys: 可选的角色标识列表，如果提供则直接使用，否则从数据库查询
+func (s *MenuService) GetSidebarMenus(ctx context.Context, userID string, roleKeys ...[]string) ([]dto.MenuItem, error) {
+	var roles []*entity.Role
+
+	// 如果提供了角色列表，直接使用；否则从数据库查询
+	if len(roleKeys) > 0 && len(roleKeys[0]) > 0 {
+		// 从角色标识列表查询角色实体
+		roles = make([]*entity.Role, 0, len(roleKeys[0]))
+		for _, roleKey := range roleKeys[0] {
+			role, err := s.permissionService.GetRoleByKey(ctx, roleKey)
+			if err == nil && role != nil {
+				roles = append(roles, role)
+			}
+		}
+	} else {
+		// 从数据库查询用户角色
+		var err error
+		roles, err = s.permissionService.GetUserRoles(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("获取用户角色失败: %w", err)
+		}
 	}
 
 	// 优先从数据库获取侧边栏菜单（类型为1）
@@ -227,6 +245,14 @@ func (s *MenuService) GetSidebarMenus(ctx context.Context, userID string) ([]dto
 
 	// 根据角色过滤菜单
 	filteredMenus := s.filterMenusByRole(ctx, allMenus, roles)
+
+	// 调试日志：记录过滤结果
+	logger.Debug("菜单过滤结果",
+		zap.String("用户ID", userID),
+		zap.Int("原始菜单数量", len(allMenus)),
+		zap.Int("过滤后菜单数量", len(filteredMenus)),
+		zap.Int("角色数量", len(roles)),
+	)
 
 	return filteredMenus, nil
 }
@@ -278,11 +304,26 @@ func (s *MenuService) filterMenusByRole(
 			for _, menuID := range menuIDs {
 				roleMenuIDs[menuID] = true
 			}
+			logger.Debug("角色菜单关联",
+				zap.String("角色ID", role.RoleID),
+				zap.String("角色Key", role.RoleKey),
+				zap.Int("菜单数量", len(menuIDs)),
+				zap.Strings("菜单ID列表", menuIDs),
+			)
+		} else {
+			logger.Warn("查询角色菜单失败",
+				zap.String("角色ID", role.RoleID),
+				zap.String("角色Key", role.RoleKey),
+				zap.Error(err),
+			)
 		}
 	}
 
 	// 如果没有分配任何菜单，返回空列表
 	if len(roleMenuIDs) == 0 {
+		logger.Debug("角色没有分配任何菜单",
+			zap.Int("角色数量", len(roles)),
+		)
 		return []dto.MenuItem{}
 	}
 
@@ -298,23 +339,29 @@ func (s *MenuService) filterMenusByRole(
 	for _, menu := range menus {
 		// 通过菜单Key查找MenuID
 		menuID, exists := menuKeyToID[menu.Key]
-		if !exists {
-			// 如果找不到菜单实体（可能是默认菜单），跳过
-			continue
+
+		// 检查当前菜单是否被授权
+		isMenuAuthorized := false
+		if exists {
+			isMenuAuthorized = roleMenuIDs[menuID]
 		}
 
-		// 检查角色的菜单ID集合中是否包含当前菜单
-		if roleMenuIDs[menuID] {
-			// 如果有子菜单，递归过滤子菜单
-			if len(menu.Children) > 0 {
-				filteredChildren := s.filterMenusByRole(ctx, menu.Children, roles)
-				if len(filteredChildren) > 0 {
-					menu.Children = filteredChildren
-					filtered = append(filtered, menu)
-				}
+		// 如果有子菜单，先递归过滤子菜单
+		var filteredChildren []dto.MenuItem
+		if len(menu.Children) > 0 {
+			filteredChildren = s.filterMenusByRole(ctx, menu.Children, roles)
+		}
+
+		// 如果当前菜单被授权，或者有被授权的子菜单，则显示该菜单
+		// 注意：即使菜单Key在映射中找不到（可能是默认菜单），如果有被授权的子菜单，也要显示
+		if isMenuAuthorized || len(filteredChildren) > 0 {
+			menuCopy := menu
+			if len(filteredChildren) > 0 {
+				menuCopy.Children = filteredChildren
 			} else {
-				filtered = append(filtered, menu)
+				menuCopy.Children = nil
 			}
+			filtered = append(filtered, menuCopy)
 		}
 	}
 
@@ -322,11 +369,27 @@ func (s *MenuService) filterMenusByRole(
 }
 
 // GetUserMenus 获取用户下拉菜单
-func (s *MenuService) GetUserMenus(ctx context.Context, userID string) ([]dto.UserMenuItem, error) {
-	// 获取用户角色
-	roles, err := s.permissionService.GetUserRoles(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户角色失败: %w", err)
+// roleKeys: 可选的角色标识列表，如果提供则直接使用，否则从数据库查询
+func (s *MenuService) GetUserMenus(ctx context.Context, userID string, roleKeys ...[]string) ([]dto.UserMenuItem, error) {
+	var roles []*entity.Role
+
+	// 如果提供了角色列表，直接使用；否则从数据库查询
+	if len(roleKeys) > 0 && len(roleKeys[0]) > 0 {
+		// 从角色标识列表查询角色实体
+		roles = make([]*entity.Role, 0, len(roleKeys[0]))
+		for _, roleKey := range roleKeys[0] {
+			role, err := s.permissionService.GetRoleByKey(ctx, roleKey)
+			if err == nil && role != nil {
+				roles = append(roles, role)
+			}
+		}
+	} else {
+		// 从数据库查询用户角色
+		var err error
+		roles, err = s.permissionService.GetUserRoles(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("获取用户角色失败: %w", err)
+		}
 	}
 
 	// 从数据库获取用户菜单（类型为2）

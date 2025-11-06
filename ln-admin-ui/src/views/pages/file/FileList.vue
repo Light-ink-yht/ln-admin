@@ -112,7 +112,7 @@ const fetchFileList = async (params: FileListParams) => {
             if (response.code === 403) {
                 permissionDenied.value = true
             }
-            message.error(response.msg || '获取文件列表失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             return { list: [], total: 0 }
         }
     } catch (error: any) {
@@ -120,7 +120,7 @@ const fetchFileList = async (params: FileListParams) => {
         if (error.response?.status === 403) {
             permissionDenied.value = true
         }
-        message.error(error.message || '获取文件列表失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         return { list: [], total: 0 }
     }
 }
@@ -159,7 +159,7 @@ const handleDownload = async (record: FileResponse) => {
         message.success('下载成功')
     } catch (error: any) {
         console.error('下载文件失败:', error)
-        message.error(error.message || '下载文件失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 
@@ -175,11 +175,11 @@ const handleDelete = (record: FileResponse) => {
                     message.success('删除成功')
                     dataListRef.value?.refresh()
                 } else {
-                    message.error(response.msg || '删除失败')
+                    // 错误提示已在 request.ts 中统一处理，这里不再重复显示
                 }
             } catch (error: any) {
                 console.error('删除文件失败:', error)
-                message.error(error.message || '删除文件失败')
+                // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             }
         },
     })

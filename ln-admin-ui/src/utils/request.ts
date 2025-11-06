@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
 import { message } from 'ant-design-vue'
 import { envConfig } from '@/env.config'
+import { parseJWTToken } from '@/utils/jwt'
 
 /**
  * 响应数据接口
@@ -84,6 +85,15 @@ service.interceptors.response.use(
 
         if (accessToken) {
             localStorage.setItem('token', accessToken)
+            // 从新token中更新角色信息
+            try {
+                const claims = parseJWTToken(accessToken)
+                if (claims && claims.roles && Array.isArray(claims.roles)) {
+                    localStorage.setItem('user_roles', JSON.stringify(claims.roles))
+                }
+            } catch (error) {
+                console.error('更新角色信息失败:', error)
+            }
         }
         if (refreshToken) {
             localStorage.setItem('refreshToken', refreshToken)
@@ -111,14 +121,14 @@ service.interceptors.response.use(
             }
             return Promise.reject(new Error(responseMessage || '操作警告'))
         } else if (res.code === 2) {
-            // 错误
+            // 业务逻辑错误，使用警告提示
             const errorMsg = responseMessage || '操作失败'
             if (config.showErrorMessage !== false) {
-                message.error(errorMsg)
+                message.warning(errorMsg)
             }
             return Promise.reject(new Error(errorMsg))
         } else if (res.code === 401) {
-            // 未授权，跳转到登录页
+            // 未授权，跳转到登录页（系统级别错误，使用error）
             message.error(responseMessage || '未授权，请重新登录')
             localStorage.removeItem('token')
             localStorage.removeItem('refreshToken')
@@ -133,17 +143,24 @@ service.interceptors.response.use(
             }
             return res as any
         } else if (res.code === 403) {
-            // 权限不足
+            // 权限不足（业务逻辑错误，使用警告）
             const errorMsg = responseMessage || '没有权限访问该资源'
+            if (config.showErrorMessage !== false) {
+                message.warning(errorMsg)
+            }
+            return Promise.reject(new Error(errorMsg))
+        } else if (res.code === 500) {
+            // 服务器内部错误（系统级别错误，使用error）
+            const errorMsg = responseMessage || '服务器内部错误'
             if (config.showErrorMessage !== false) {
                 message.error(errorMsg)
             }
             return Promise.reject(new Error(errorMsg))
         } else {
-            // 其他错误码
+            // 其他错误码（业务逻辑错误，使用警告）
             const errorMsg = responseMessage || '请求失败'
             if (config.showErrorMessage !== false) {
-                message.error(errorMsg)
+                message.warning(errorMsg)
             }
             return Promise.reject(new Error(errorMsg))
         }
@@ -159,9 +176,11 @@ service.interceptors.response.use(
 
             switch (status) {
                 case 400:
-                    errorMessage = data?.message || '请求参数错误'
+                    // 业务逻辑错误，使用警告
+                    errorMessage = data?.message || data?.msg || '请求参数错误'
                     break
                 case 401:
+                    // 系统级别错误，使用error
                     errorMessage = '未授权，请重新登录'
                     localStorage.removeItem('token')
                     localStorage.removeItem('refreshToken')
@@ -170,36 +189,49 @@ service.interceptors.response.use(
                     }, 1500)
                     break
                 case 403:
-                    errorMessage = '拒绝访问'
+                    // 业务逻辑错误，使用警告
+                    errorMessage = data?.message || data?.msg || '拒绝访问'
                     break
                 case 404:
-                    errorMessage = '请求资源不存在'
+                    // 业务逻辑错误，使用警告
+                    errorMessage = data?.message || data?.msg || '请求资源不存在'
                     break
                 case 500:
-                    errorMessage = '服务器内部错误'
-                    break
                 case 502:
-                    errorMessage = '网关错误'
-                    break
                 case 503:
-                    errorMessage = '服务不可用'
-                    break
                 case 504:
-                    errorMessage = '网关超时'
+                    // 系统级别错误，使用error
+                    errorMessage = status === 500 ? '服务器内部错误' : 
+                                   status === 502 ? '网关错误' : 
+                                   status === 503 ? '服务不可用' : '网关超时'
                     break
                 default:
-                    errorMessage = data?.message || `请求失败，错误码：${status}`
+                    // 其他错误，根据状态码判断
+                    if (status >= 500) {
+                        // 服务器错误，使用error
+                        errorMessage = data?.message || data?.msg || `服务器错误，错误码：${status}`
+                    } else {
+                        // 业务逻辑错误，使用警告
+                        errorMessage = data?.message || data?.msg || `请求失败，错误码：${status}`
+                    }
             }
         } else if (error.request) {
-            // 请求已发出但没有收到响应
+            // 网络错误，使用警告
             errorMessage = '网络连接失败，请检查网络'
         } else {
-            // 其他错误
+            // 其他错误，使用警告
             errorMessage = error.message || '请求失败'
         }
 
         if (config?.showErrorMessage !== false) {
-            message.error(errorMessage)
+            // 根据状态码判断使用error还是warning
+            if (error.response?.status && error.response.status >= 500) {
+                message.error(errorMessage)
+            } else if (error.response?.status === 401) {
+                message.error(errorMessage)
+            } else {
+                message.warning(errorMessage)
+            }
         }
 
         return Promise.reject(error)
@@ -303,6 +335,15 @@ export const request = {
 
         if (accessToken) {
             localStorage.setItem('token', accessToken)
+            // 从新token中更新角色信息
+            try {
+                const claims = parseJWTToken(accessToken)
+                if (claims && claims.roles && Array.isArray(claims.roles)) {
+                    localStorage.setItem('user_roles', JSON.stringify(claims.roles))
+                }
+            } catch (error) {
+                console.error('更新角色信息失败:', error)
+            }
         }
         if (newRefreshToken) {
             localStorage.setItem('refreshToken', newRefreshToken)

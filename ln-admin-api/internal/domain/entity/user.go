@@ -12,23 +12,23 @@ const TableCommentAA01 = "用户表：存储系统用户的完整信息，包括
 // AA01 用户实体（与数据库表对应）
 type AA01 struct {
 	gorm.Model
-	AAA001 string     `gorm:"column:AAA001;type:varchar(50);primaryKey;comment:用户id"`             // 用户id, 主键
-	AAA002 *string    `gorm:"column:AAA002;type:varchar(100);uniqueIndex;comment:邮箱"`             // 邮箱, 全局唯一
-	AAA003 *string    `gorm:"column:AAA003;type:varchar(20);uniqueIndex;comment:手机号"`             // 手机号, 全局唯一
-	AAA004 string     `gorm:"column:AAA004;type:varchar(255);not null;comment:密码"`                // 密码
-	AAA005 string     `gorm:"column:AAA005;type:varchar(50);comment:昵称"`                          // 昵称
-	AAA006 string     `gorm:"column:AAA006;type:varchar(50);comment:姓名"`                          // 姓名
-	AAA007 string     `gorm:"column:AAA007;type:varchar(255);comment:头像"`                         // 头像
-	AAA008 string     `gorm:"column:AAA008;type:varchar(10);default:'3';comment:性别 1 男，2 女，3 未知"` // 性别
-	AAA009 *time.Time `gorm:"column:AAA009;type:date;comment:生日"`                                 // 生日
-	AAA010 string     `gorm:"column:AAA010;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"`    // 状态
-	AAA011 string     `gorm:"column:AAA011;type:varchar(500);comment:备注"`                         // 备注
-	AAA012 int        `gorm:"column:AAA012;type:int;default:0;comment:登录次数"`                      // 登录次数
-	AAA013 *time.Time `gorm:"column:AAA013;type:datetime;index;comment:最后登录时间"`                   // 最后登录时间
-	AAA014 string     `gorm:"column:AAA014;type:varchar(50);comment:最后登录ip"`                      // 最后登录ip
-	AAA015 *time.Time `gorm:"column:AAA015;type:datetime;comment:密码修改时间"`                         // 密码修改时间
-	AAA016 string     `gorm:"column:AAA016;type:varchar(50);comment:创建人"`                         // 创建人
-	AAA017 string     `gorm:"column:AAA017;type:varchar(50);comment:修改人"`                         // 修改人
+	AAA001 string     `gorm:"column:AAA001;type:varchar(50);primaryKey;comment:用户id"`                // 用户id, 主键
+	AAA002 *string    `gorm:"column:AAA002;type:varchar(100);uniqueIndex;comment:邮箱"`                // 邮箱, 全局唯一
+	AAA003 *string    `gorm:"column:AAA003;type:varchar(20);uniqueIndex;comment:手机号"`                // 手机号, 全局唯一
+	AAA004 string     `gorm:"column:AAA004;type:varchar(255);not null;comment:密码"`                   // 密码
+	AAA005 string     `gorm:"column:AAA005;type:varchar(50);comment:昵称"`                             // 昵称
+	AAA006 string     `gorm:"column:AAA006;type:varchar(50);comment:姓名"`                             // 姓名
+	AAA007 string     `gorm:"column:AAA007;type:varchar(255);comment:头像"`                            // 头像
+	AAA008 string     `gorm:"column:AAA008;type:varchar(10);default:'3';comment:性别 1 男，2 女，3 未知"`    // 性别
+	AAA009 *time.Time `gorm:"column:AAA009;type:date;comment:生日"`                                    // 生日
+	AAA010 string     `gorm:"column:AAA010;type:varchar(10);default:'1';index;comment:状态 1 启用，2 禁用"` // 状态
+	AAA011 string     `gorm:"column:AAA011;type:varchar(500);comment:备注"`                            // 备注
+	AAA012 int        `gorm:"column:AAA012;type:int;default:0;comment:登录次数"`                         // 登录次数
+	AAA013 *time.Time `gorm:"column:AAA013;type:datetime;index;comment:最后登录时间"`                      // 最后登录时间
+	AAA014 string     `gorm:"column:AAA014;type:varchar(50);comment:最后登录ip"`                         // 最后登录ip
+	AAA015 *time.Time `gorm:"column:AAA015;type:datetime;comment:密码修改时间"`                            // 密码修改时间
+	AAA016 string     `gorm:"column:AAA016;type:varchar(50);index;comment:创建人"`                      // 创建人
+	AAA017 string     `gorm:"column:AAA017;type:varchar(50);index;comment:修改人"`                      // 修改人
 }
 
 // TableName 指定表名

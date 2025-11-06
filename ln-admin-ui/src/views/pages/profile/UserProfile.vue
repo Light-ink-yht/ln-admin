@@ -235,7 +235,7 @@ const handleSaveProfile = async () => {
     try {
         await editProfileFormRef.value?.validate()
         if (!userInfo.value) {
-            message.error('用户信息不存在')
+            message.warning('用户信息不存在')
             return
         }
 
@@ -265,7 +265,7 @@ const handleSaveProfile = async () => {
         if (error.errorFields) {
             return
         }
-        message.error(error.message || '保存失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         editProfileLoading.value = false
     }
@@ -290,7 +290,7 @@ const handleSavePassword = async () => {
     try {
         await changePasswordFormRef.value?.validate()
         if (!userInfo.value) {
-            message.error('用户信息不存在')
+            message.warning('用户信息不存在')
             return
         }
 
@@ -313,7 +313,7 @@ const handleSavePassword = async () => {
         if (error.errorFields) {
             return
         }
-        message.error(error.message || '修改密码失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         changePasswordLoading.value = false
     }
@@ -339,12 +339,12 @@ const handleAvatarUploadSuccess = async (file: FileResponse) => {
                 message.success('头像上传成功')
                 await userStore.fetchUserInfo()
             } else {
-                message.error(updateResponse.msg || '更新头像失败')
+                // 错误提示已在 request.ts 中统一处理，这里不再重复显示
             }
         }
     } catch (error: any) {
         console.error('更新头像失败:', error)
-        message.error(error.message || '更新头像失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 

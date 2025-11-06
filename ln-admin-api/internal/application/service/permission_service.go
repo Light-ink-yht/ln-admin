@@ -21,10 +21,11 @@ var (
 
 // PermissionService 权限管理服务
 type PermissionService struct {
-	roleRepo       repository.RoleRepository
-	permissionRepo repository.PermissionRepository
-	userRoleRepo   repository.UserRoleRepository
-	casbinSvc      *casbin_service.CasbinService
+	roleRepo                repository.RoleRepository
+	permissionRepo          repository.PermissionRepository
+	userRoleRepo            repository.UserRoleRepository
+	rolePermissionGrantRepo repository.RolePermissionGrantRepository
+	casbinSvc               *casbin_service.CasbinService
 }
 
 // NewPermissionService 创建权限管理服务
@@ -32,13 +33,15 @@ func NewPermissionService(
 	roleRepo repository.RoleRepository,
 	permissionRepo repository.PermissionRepository,
 	userRoleRepo repository.UserRoleRepository,
+	rolePermissionGrantRepo repository.RolePermissionGrantRepository,
 ) *PermissionService {
 	casbinSvc := casbin_service.NewCasbinService()
 	return &PermissionService{
-		roleRepo:       roleRepo,
-		permissionRepo: permissionRepo,
-		userRoleRepo:   userRoleRepo,
-		casbinSvc:      casbinSvc,
+		roleRepo:                roleRepo,
+		permissionRepo:          permissionRepo,
+		userRoleRepo:            userRoleRepo,
+		rolePermissionGrantRepo: rolePermissionGrantRepo,
+		casbinSvc:               casbinSvc,
 	}
 }
 
@@ -90,33 +93,10 @@ func (s *PermissionService) RemoveRoleFromUser(ctx context.Context, userID, role
 	return nil
 }
 
-// AssignPermissionToRole 为角色分配权限
-func (s *PermissionService) AssignPermissionToRole(ctx context.Context, roleID, permissionID string) error {
-	// 检查角色是否存在
-	role, err := s.roleRepo.FindByID(ctx, roleID)
-	if err != nil {
-		return fmt.Errorf("查询角色失败: %w", err)
-	}
-	if role == nil {
-		return ErrRoleNotFound
-	}
-
-	// 检查权限是否存在
-	permission, err := s.permissionRepo.FindByID(ctx, permissionID)
-	if err != nil {
-		return fmt.Errorf("查询权限失败: %w", err)
-	}
-	if permission == nil {
-		return ErrPermissionNotFound
-	}
-
-	// 更新Casbin策略：角色拥有权限
-	// 策略格式：p, role_key, resource_path, method
-	if err := s.casbinSvc.AddPolicy(ctx, role.RoleKey, permission.ResourcePath, permission.Method); err != nil {
-		return fmt.Errorf("更新Casbin策略失败: %w", err)
-	}
-
-	return nil
+// AssignPermissionToRole 为角色分配权限（支持层级授权，需要传入授予者用户ID）
+func (s *PermissionService) AssignPermissionToRole(ctx context.Context, grantorUserID, roleID, permissionID string) error {
+	// 使用新的层级授权方法
+	return s.GrantPermissionToRole(ctx, grantorUserID, roleID, permissionID)
 }
 
 // RemovePermissionFromRole 移除角色权限
@@ -213,6 +193,18 @@ func (s *PermissionService) GetRoleList(ctx context.Context, page, pageSize int,
 // GetRoleByID 根据ID获取角色
 func (s *PermissionService) GetRoleByID(ctx context.Context, roleID string) (*entity.Role, error) {
 	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+	if role == nil {
+		return nil, ErrRoleNotFound
+	}
+	return role, nil
+}
+
+// GetRoleByKey 根据角色标识获取角色
+func (s *PermissionService) GetRoleByKey(ctx context.Context, roleKey string) (*entity.Role, error) {
+	role, err := s.roleRepo.FindByKey(ctx, roleKey)
 	if err != nil {
 		return nil, fmt.Errorf("查询角色失败: %w", err)
 	}
@@ -353,6 +345,192 @@ func (s *PermissionService) AssignPermissionsToUser(ctx context.Context, userID 
 		if err := s.casbinSvc.AddPolicyForUser(ctx, userID, permission.ResourcePath, permission.Method); err != nil {
 			return fmt.Errorf("添加用户权限失败: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// IsSuperAdmin 检查用户是否是超级管理员
+func (s *PermissionService) IsSuperAdmin(ctx context.Context, userID string) (bool, error) {
+	roles, err := s.GetUserRoles(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	for _, role := range roles {
+		if role.RoleKey == "super_admin" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// GetVisiblePermissions 获取用户可见的权限列表（根据层级授权）
+func (s *PermissionService) GetVisiblePermissions(ctx context.Context, userID string) ([]*entity.Permission, error) {
+	// 检查是否是超级管理员
+	isSuperAdmin, err := s.IsSuperAdmin(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("检查超级管理员失败: %w", err)
+	}
+
+	// 超级管理员可以看到所有权限
+	if isSuperAdmin {
+		allPermissions, _, err := s.permissionRepo.List(ctx, 1, 10000, map[string]interface{}{})
+		if err != nil {
+			return nil, fmt.Errorf("查询所有权限失败: %w", err)
+		}
+		return allPermissions, nil
+	}
+
+	// 获取用户的角色
+	roles, err := s.GetUserRoles(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户角色失败: %w", err)
+	}
+
+	// 收集所有被授予的权限ID
+	permissionIDSet := make(map[string]bool)
+	for _, role := range roles {
+		// 查询该角色被授予的所有权限
+		grantedPermissionIDs, err := s.rolePermissionGrantRepo.FindPermissionsByGranteeRoleID(ctx, role.RoleID)
+		if err != nil {
+			return nil, fmt.Errorf("查询角色被授予的权限失败: %w", err)
+		}
+		for _, permissionID := range grantedPermissionIDs {
+			permissionIDSet[permissionID] = true
+		}
+	}
+
+	// 如果没有被授予的权限，返回空列表
+	if len(permissionIDSet) == 0 {
+		return []*entity.Permission{}, nil
+	}
+
+	// 查询权限详情
+	permissionIDs := make([]string, 0, len(permissionIDSet))
+	for permissionID := range permissionIDSet {
+		permissionIDs = append(permissionIDs, permissionID)
+	}
+
+	// 批量查询权限
+	permissions := make([]*entity.Permission, 0, len(permissionIDs))
+	for _, permissionID := range permissionIDs {
+		permission, err := s.permissionRepo.FindByID(ctx, permissionID)
+		if err != nil {
+			continue // 忽略查询失败的权限
+		}
+		if permission != nil {
+			permissions = append(permissions, permission)
+		}
+	}
+
+	return permissions, nil
+}
+
+// CanGrantPermission 检查用户是否有权限授予某个权限
+func (s *PermissionService) CanGrantPermission(ctx context.Context, grantorUserID, permissionID string) (bool, error) {
+	// 检查是否是超级管理员
+	isSuperAdmin, err := s.IsSuperAdmin(ctx, grantorUserID)
+	if err != nil {
+		return false, err
+	}
+	if isSuperAdmin {
+		return true, nil
+	}
+
+	// 获取用户的角色
+	roles, err := s.GetUserRoles(ctx, grantorUserID)
+	if err != nil {
+		return false, fmt.Errorf("获取用户角色失败: %w", err)
+	}
+
+	// 检查用户的角色是否被授予了该权限
+	for _, role := range roles {
+		// 查询该角色被授予的所有权限
+		grantedPermissionIDs, err := s.rolePermissionGrantRepo.FindPermissionsByGranteeRoleID(ctx, role.RoleID)
+		if err != nil {
+			continue
+		}
+		// 检查是否包含该权限
+		for _, grantedPermissionID := range grantedPermissionIDs {
+			if grantedPermissionID == permissionID {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// GrantPermissionToRole 层级授权（为角色分配权限，记录授予关系）
+func (s *PermissionService) GrantPermissionToRole(ctx context.Context, grantorUserID, roleID, permissionID string) error {
+	// 检查角色是否存在
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+	if role == nil {
+		return ErrRoleNotFound
+	}
+
+	// 检查权限是否存在
+	permission, err := s.permissionRepo.FindByID(ctx, permissionID)
+	if err != nil {
+		return fmt.Errorf("查询权限失败: %w", err)
+	}
+	if permission == nil {
+		return ErrPermissionNotFound
+	}
+
+	// 获取授予者的角色
+	grantorRoles, err := s.GetUserRoles(ctx, grantorUserID)
+	if err != nil {
+		return fmt.Errorf("获取授予者角色失败: %w", err)
+	}
+	if len(grantorRoles) == 0 {
+		return fmt.Errorf("授予者没有角色")
+	}
+
+	// 检查是否是超级管理员
+	isSuperAdmin, err := s.IsSuperAdmin(ctx, grantorUserID)
+	if err != nil {
+		return fmt.Errorf("检查超级管理员失败: %w", err)
+	}
+
+	// 如果不是超级管理员，检查是否有权限授予该权限
+	if !isSuperAdmin {
+		canGrant, err := s.CanGrantPermission(ctx, grantorUserID, permissionID)
+		if err != nil {
+			return fmt.Errorf("检查授权权限失败: %w", err)
+		}
+		if !canGrant {
+			return fmt.Errorf("没有权限授予该权限")
+		}
+	}
+
+	// 使用第一个角色作为授予者角色（通常用户只有一个主要角色）
+	grantorRoleID := grantorRoles[0].RoleID
+	// 如果是超级管理员，grantorRoleID 使用超级管理员角色ID
+	if isSuperAdmin {
+		// 查找超级管理员角色
+		superAdminRole, err := s.roleRepo.FindByKey(ctx, "super_admin")
+		if err == nil && superAdminRole != nil {
+			grantorRoleID = superAdminRole.RoleID
+		}
+	}
+
+	// 记录授予关系
+	if err := s.rolePermissionGrantRepo.GrantPermission(ctx, grantorRoleID, roleID, permissionID); err != nil {
+		return fmt.Errorf("记录授予关系失败: %w", err)
+	}
+
+	// 更新Casbin策略：角色拥有权限
+	resourcePath := permission.ResourcePath
+	// 移除路径前缀 /api（因为中间件会移除这个前缀）
+	if len(resourcePath) > 4 && resourcePath[:4] == "/api" {
+		resourcePath = resourcePath[4:]
+	}
+	if err := s.casbinSvc.AddPolicy(ctx, role.RoleKey, resourcePath, permission.Method); err != nil {
+		return fmt.Errorf("更新Casbin策略失败: %w", err)
 	}
 
 	return nil

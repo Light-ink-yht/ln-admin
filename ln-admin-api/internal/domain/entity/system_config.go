@@ -12,15 +12,15 @@ const TableCommentAA02 = "系统配置表：存储系统运行所需的各种配
 // AA02 系统配置表
 type AA02 struct {
 	gorm.Model
-	AAB001 string     `gorm:"column:AAB001;type:varchar(50);primaryKey;comment:配置键"`           // 配置键, 主键
-	AAB002 string     `gorm:"column:AAB002;type:varchar(500);comment:配置值"`                     // 配置值
-	AAB003 string     `gorm:"column:AAB003;type:varchar(100);comment:配置名称"`                    // 配置名称
-	AAB004 string     `gorm:"column:AAB004;type:varchar(50);comment:配置分组"`                     // 配置分组（sms, jwt, system等）
-	AAB005 string     `gorm:"column:AAB005;type:varchar(500);comment:配置描述"`                    // 配置描述
-	AAB006 string     `gorm:"column:AAB006;type:varchar(10);default:'1';comment:状态 1 启用，2 禁用"` // 状态
-	AAB007 *time.Time `gorm:"column:AAB007;type:datetime;comment:最后修改时间"`                      // 最后修改时间
-	AAB008 string     `gorm:"column:AAB008;type:varchar(50);comment:创建人"`                      // 创建人
-	AAB009 string     `gorm:"column:AAB009;type:varchar(50);comment:修改人"`                      // 修改人
+	AAB001 string     `gorm:"column:AAB001;type:varchar(50);primaryKey;comment:配置键"`                                                   // 配置键, 主键
+	AAB002 string     `gorm:"column:AAB002;type:varchar(500);comment:配置值"`                                                             // 配置值
+	AAB003 string     `gorm:"column:AAB003;type:varchar(100);comment:配置名称"`                                                            // 配置名称
+	AAB004 string     `gorm:"column:AAB004;type:varchar(50);index;index:idx_group_status,priority:1;comment:配置分组"`                     // 配置分组（sms, jwt, system等）
+	AAB005 string     `gorm:"column:AAB005;type:varchar(500);comment:配置描述"`                                                            // 配置描述
+	AAB006 string     `gorm:"column:AAB006;type:varchar(10);default:'1';index;index:idx_group_status,priority:2;comment:状态 1 启用，2 禁用"` // 状态
+	AAB007 *time.Time `gorm:"column:AAB007;type:datetime;comment:最后修改时间"`                                                              // 最后修改时间
+	AAB008 string     `gorm:"column:AAB008;type:varchar(50);comment:创建人"`                                                              // 创建人
+	AAB009 string     `gorm:"column:AAB009;type:varchar(50);comment:修改人"`                                                              // 修改人
 }
 
 // TableName 指定表名

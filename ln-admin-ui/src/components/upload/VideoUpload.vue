@@ -246,20 +246,20 @@ const getVideoDuration = (file: File): Promise<number> => {
 const beforeUpload: UploadProps['beforeUpload'] = (file) => {
     // 检查文件类型
     if (!file.type.startsWith('video/')) {
-        message.error('只能上传视频文件！')
+        message.warning('只能上传视频文件！')
         return false
     }
 
     // 检查文件大小
     const maxSizeBytes = props.maxSize * 1024 * 1024
     if (file.size > maxSizeBytes) {
-        message.error(`视频大小不能超过 ${props.maxSize}MB！`)
+        message.warning(`视频大小不能超过 ${props.maxSize}MB！`)
         return false
     }
 
     // 检查数量限制
     if (props.multiple && (currentVideos.value.length || 0) >= props.maxCount) {
-        message.error(`最多只能上传 ${props.maxCount} 个视频！`)
+        message.warning(`最多只能上传 ${props.maxCount} 个视频！`)
         return false
     }
 
@@ -330,7 +330,7 @@ const customRequest: UploadProps['customRequest'] = async (options) => {
             currentVideos.value[index] = { ...newVideo }
             onError?.(error)
             emit('upload-error', error, index)
-            message.error(response.msg || '上传失败')
+            // 错误提示已在 request.ts 中统一处理，这里不再重复显示
         }
     } catch (error: any) {
         console.error('上传视频失败:', error)
@@ -339,7 +339,7 @@ const customRequest: UploadProps['customRequest'] = async (options) => {
         currentVideos.value[index] = { ...newVideo }
         onError?.(error)
         emit('upload-error', error, index)
-        message.error(error.message || '上传失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 

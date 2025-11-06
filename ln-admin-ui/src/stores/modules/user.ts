@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type UserInfo } from '@/api/auth'
+import { getRolesFromToken, parseJWTToken } from '@/utils/jwt'
 
 export const useUserStore = defineStore('user', () => {
     // ==================== 状态 ====================
     const userInfo = ref<UserInfo | null>(null)
     const token = ref<string>('')
     const refreshToken = ref<string>('')
+    const roles = ref<string[]>([]) // 用户角色列表（从JWT token中解析）
 
     // ==================== 计算属性 ====================
     /**
@@ -32,22 +34,25 @@ export const useUserStore = defineStore('user', () => {
     const userAvatar = computed(() => userInfo.value?.avatar || '')
 
     /**
-     * 用户角色（从用户信息中获取，需要后端返回）
+     * 用户角色列表（从JWT token中解析）
      */
     const userRoles = computed(() => {
-        // 如果后端返回了角色信息，从这里获取
-        // 目前先返回空数组，后续可以扩展
-        return (userInfo.value as any)?.roles || []
+        return roles.value
+    })
+
+    /**
+     * 是否是超级管理员
+     */
+    const isSuperAdmin = computed(() => {
+        return roles.value.includes('super_admin')
     })
 
     /**
      * 主要角色标识
      */
     const primaryRole = computed(() => {
-        const roles = userRoles.value
-        if (roles && roles.length > 0) {
-            // 返回第一个角色的key，或者根据优先级返回
-            return (roles[0] as any)?.roleKey || roles[0]?.roleName || null
+        if (roles.value && roles.value.length > 0) {
+            return roles.value[0]
         }
         return null
     })
@@ -73,6 +78,24 @@ export const useUserStore = defineStore('user', () => {
         if (refresh) {
             localStorage.setItem('refreshToken', refresh)
         }
+        
+        // 从token中解析角色信息
+        updateRolesFromToken(accessToken)
+    }
+
+    /**
+     * 从Token中更新角色信息
+     */
+    function updateRolesFromToken(tokenString: string) {
+        const claims = parseJWTToken(tokenString)
+        if (claims && claims.roles && Array.isArray(claims.roles)) {
+            roles.value = claims.roles
+            // 持久化角色信息到 localStorage
+            localStorage.setItem('user_roles', JSON.stringify(claims.roles))
+        } else {
+            roles.value = []
+            localStorage.removeItem('user_roles')
+        }
     }
 
     /**
@@ -83,6 +106,19 @@ export const useUserStore = defineStore('user', () => {
         const storedRefreshToken = localStorage.getItem('refreshToken')
         if (storedToken) {
             token.value = storedToken
+            // 从token中恢复角色信息
+            updateRolesFromToken(storedToken)
+        } else {
+            // 如果token不存在，尝试从localStorage恢复角色信息（向后兼容）
+            const storedRoles = localStorage.getItem('user_roles')
+            if (storedRoles) {
+                try {
+                    roles.value = JSON.parse(storedRoles)
+                } catch (error) {
+                    console.error('解析存储的角色信息失败:', error)
+                    roles.value = []
+                }
+            }
         }
         if (storedRefreshToken) {
             refreshToken.value = storedRefreshToken
@@ -138,8 +174,10 @@ export const useUserStore = defineStore('user', () => {
         userInfo.value = null
         token.value = ''
         refreshToken.value = ''
+        roles.value = []
         localStorage.removeItem('token')
         localStorage.removeItem('refreshToken')
+        localStorage.removeItem('user_roles')
     }
 
     /**
@@ -163,12 +201,14 @@ export const useUserStore = defineStore('user', () => {
         userInfo,
         token,
         refreshToken,
+        roles,
         // 计算属性
         isLoggedIn,
         userId,
         userName,
         userAvatar,
         userRoles,
+        isSuperAdmin,
         primaryRole,
         // 方法
         setUserInfo,
@@ -180,6 +220,7 @@ export const useUserStore = defineStore('user', () => {
         logout,
         clearUserInfo,
         updateUserInfo,
+        updateRolesFromToken,
     }
 }, {
     persist: {

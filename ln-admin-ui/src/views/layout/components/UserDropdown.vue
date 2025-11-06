@@ -152,15 +152,19 @@ const handleLogout = async () => {
         // 清除store中的用户信息
         userStore.logout()
         
+        // 显示退出成功消息（只显示一次）
+        message.success('已退出登录')
+        
         // 跳转到登录页
         router.push('/login')
-        message.success('已退出登录')
     } catch (error) {
         console.error('退出登录失败:', error)
         // 即使API调用失败，也清除本地信息
         userStore.logout()
+        // 显示退出成功消息（只显示一次）
+        message.success('已退出登录')
         router.push('/login')
-        message.error('退出登录失败')
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     }
 }
 

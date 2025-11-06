@@ -116,9 +116,7 @@ const handleSubmit = async () => {
         visible.value = false
     } catch (error: any) {
         console.error('提交角色表单失败:', error)
-        if (error.response?.status !== 404) {
-            message.error(error.message || '提交失败')
-        }
+        // 错误提示已在 request.ts 中统一处理，这里不再重复显示
     } finally {
         loading.value = false
     }

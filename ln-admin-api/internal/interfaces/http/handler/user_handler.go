@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Light-ink-yht/ln-admin/internal/application/dto"
 	"github.com/Light-ink-yht/ln-admin/internal/application/service"
@@ -941,6 +942,19 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 			response.Error(c, 404, "用户不存在")
 			return
 		}
+		// 检查是否是超级管理员账号
+		if err.Error() == "不允许删除超级管理员账号" {
+			logger.Warn("删除用户失败",
+				zap.String("操作", "删除用户"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "不允许删除超级管理员账号"),
+				zap.String("user_id", userID),
+				zap.String("deleter_id", deleterID),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 400, "不允许删除超级管理员账号")
+			return
+		}
 		logger.Error("删除用户失败",
 			zap.String("操作", "删除用户"),
 			zap.String("结果", "失败"),
@@ -1078,8 +1092,8 @@ func (h *UserHandler) GrantPermissions(c *gin.Context) {
 		return
 	}
 
-	// 调用服务
-	if err := h.userService.GrantPermissions(c.Request.Context(), userID, req.PermissionIds); err != nil {
+	// 调用服务（传入授予者用户ID）
+	if err := h.userService.GrantPermissions(c.Request.Context(), grantorID, userID, req.PermissionIds); err != nil {
 		if err == service.ErrUserNotFound {
 			logger.Warn("给用户授权失败",
 				zap.String("操作", "给用户授权"),
@@ -1092,6 +1106,20 @@ func (h *UserHandler) GrantPermissions(c *gin.Context) {
 			response.Error(c, 404, "用户不存在")
 			return
 		}
+		// 检查是否是权限不足的错误
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "没有权限授予") {
+			logger.Warn("给用户授权失败",
+				zap.String("操作", "给用户授权"),
+				zap.String("结果", "失败"),
+				zap.String("失败原因", "权限不足"),
+				zap.String("user_id", userID),
+				zap.String("grantor_id", grantorID),
+				zap.String("ip", clientIP),
+				zap.Error(err))
+			response.Error(c, 403, errMsg)
+			return
+		}
 		logger.Error("给用户授权失败",
 			zap.String("操作", "给用户授权"),
 			zap.String("结果", "失败"),
@@ -1100,7 +1128,8 @@ func (h *UserHandler) GrantPermissions(c *gin.Context) {
 			zap.String("grantor_id", grantorID),
 			zap.String("ip", clientIP),
 			zap.Error(err))
-		response.InternalError(c, "授权失败")
+		// 返回具体的错误信息，而不是通用的"授权失败"
+		response.Error(c, 500, errMsg)
 		return
 	}
 
