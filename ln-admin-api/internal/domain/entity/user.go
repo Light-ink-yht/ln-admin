@@ -74,7 +74,7 @@ func (u *User) ToAA01() *AA01 {
 		UpdatedAt: u.UpdatedAt,
 	}
 	if u.DeletedAt != nil {
-		model.DeletedAt = gorm.DeletedAt{Time: *u.DeletedAt}
+		model.DeletedAt = gorm.DeletedAt{Time: *u.DeletedAt, Valid: true}
 	}
 	return &AA01{
 		Model:  model,
